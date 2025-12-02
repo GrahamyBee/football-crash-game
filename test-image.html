@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Load Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            margin-bottom: 20px;
+        }
+        img {
+            border: 2px solid white;
+            margin: 10px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Direct Image Load Test</h1>
+    <div id="info">
+        <p>Testing if the browser can load the PNG file directly...</p>
+        <p>Path: Assets/FOOTBALLER_NEW.png</p>
+    </div>
+    
+    <h2>Method 1: Direct IMG tag</h2>
+    <img id="directImg" src="Assets/FOOTBALLER_NEW.png" onerror="imgError()" onload="imgLoaded()">
+    
+    <h2>Method 2: JavaScript Image</h2>
+    <div id="jsResult">Loading...</div>
+    <canvas id="canvas" width="1536" height="256" style="border: 2px solid white;"></canvas>
+    
+    <h2>Method 3: Phaser Simple Image (not sprite sheet)</h2>
+    <div id="game"></div>
+    
+    <!-- Load Phaser 3 from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+    
+    <script>
+        function imgError() {
+            document.getElementById('info').innerHTML += '<br><span style="color:red;">❌ Direct IMG tag failed to load!</span>';
+        }
+        
+        function imgLoaded() {
+            const img = document.getElementById('directImg');
+            document.getElementById('info').innerHTML += 
+                '<br><span style="color:green;">✅ Direct IMG tag loaded!</span>' +
+                '<br>Dimensions: ' + img.naturalWidth + 'x' + img.naturalHeight;
+        }
+        
+        // JavaScript Image test
+        const jsImg = new Image();
+        jsImg.onload = function() {
+            document.getElementById('jsResult').innerHTML = 
+                '<span style="color:green;">✅ JavaScript Image loaded!</span><br>' +
+                'Dimensions: ' + this.width + 'x' + this.height;
+            
+            // Draw to canvas
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(this, 0, 0);
+            
+            // Draw grid lines to show frame boundaries
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            for (let i = 1; i < 6; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * 256, 0);
+                ctx.lineTo(i * 256, 256);
+                ctx.stroke();
+            }
+            
+            document.getElementById('jsResult').innerHTML += 
+                '<br>Canvas drawn with frame boundaries (red lines every 256px)';
+        };
+        jsImg.onerror = function() {
+            document.getElementById('jsResult').innerHTML = 
+                '<span style="color:red;">❌ JavaScript Image failed!</span>';
+        };
+        jsImg.src = 'Assets/FOOTBALLER_NEW.png';
+        
+        // Phaser test - load as single image
+        class TestScene extends Phaser.Scene {
+            preload() {
+                console.log('Phaser: Loading as regular image...');
+                this.load.image('footballerImg', 'Assets/FOOTBALLER_NEW.png');
+                
+                this.load.on('loaderror', (file) => {
+                    console.error('Phaser load error:', file);
+                });
+            }
+            
+            create() {
+                if (this.textures.exists('footballerImg')) {
+                    console.log('✅ Phaser loaded image successfully!');
+                    const img = this.add.image(400, 150, 'footballerImg');
+                    img.setScale(0.3); // Scale down to fit
+                    
+                    this.add.text(400, 300, 'Phaser Image Load: SUCCESS', {
+                        fontSize: '20px',
+                        fill: '#0f0'
+                    }).setOrigin(0.5);
+                } else {
+                    console.log('❌ Phaser failed to load image');
+                    this.add.text(400, 150, 'Phaser Image Load: FAILED', {
+                        fontSize: '20px',
+                        fill: '#f00'
+                    }).setOrigin(0.5);
+                }
+            }
+        }
+        
+        const config = {
+            type: Phaser.AUTO,
+            parent: 'game',
+            width: 800,
+            height: 350,
+            backgroundColor: '#1a1a1a',
+            scene: [TestScene]
+        };
+        
+        const game = new Phaser.Game(config);
+    </script>
+</body>
+</html>

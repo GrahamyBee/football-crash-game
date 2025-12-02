@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Button Test</title>
+    <style>
+        body { 
+            background: #1a1a1a; 
+            color: white; 
+            font-family: Arial;
+            padding: 20px;
+        }
+        .info {
+            margin: 20px 0;
+            padding: 10px;
+            background: #333;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Football Crash - Button Test</h1>
+    <div class="info">
+        <p>Check browser console (F12) for debug messages</p>
+        <p id="status">Waiting for game to load...</p>
+    </div>
+    
+    <iframe src="index.html" style="width: 100%; height: 800px; border: 2px solid #4CAF50;"></iframe>
+    
+    <script>
+        console.log('Test page loaded');
+        window.addEventListener('message', (event) => {
+            console.log('Message from game:', event.data);
+        });
+    </script>
+</body>
+</html>

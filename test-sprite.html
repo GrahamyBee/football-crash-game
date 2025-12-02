@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprite Sheet Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            margin-bottom: 20px;
+        }
+        #game {
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sprite Sheet Test</h1>
+    <div id="info">Loading sprite sheet...</div>
+    <div id="game"></div>
+    
+    <!-- Load Phaser 3 from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+    
+    <script>
+        const infoDiv = document.getElementById('info');
+        
+        function log(message) {
+            console.log(message);
+            infoDiv.innerHTML += '<br>' + message;
+        }
+        
+        log('Starting test...');
+        log('Sprite path: Assets/FOOTBALLER_NEW.png');
+        log('Expected dimensions: 1536x256 (6 frames of 256x256)');
+        
+        class TestScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'TestScene' });
+            }
+            
+            preload() {
+                log('Preload starting...');
+                
+                this.load.on('loaderror', (file) => {
+                    log('❌ ERROR loading: ' + file.src);
+                    log('File key: ' + file.key);
+                });
+                
+                this.load.on('complete', () => {
+                    log('✅ Load complete!');
+                });
+                
+                this.load.on('progress', (value) => {
+                    log('Progress: ' + Math.round(value * 100) + '%');
+                });
+                
+                // Load the sprite sheet
+                this.load.spritesheet('footballer', 'Assets/FOOTBALLER_NEW.png', {
+                    frameWidth: 256,
+                    frameHeight: 256
+                });
+                
+                log('Sprite sheet queued...');
+            }
+            
+            create() {
+                log('Create starting...');
+                
+                // Check if loaded
+                if (this.textures.exists('footballer')) {
+                    log('✅ Texture exists!');
+                    
+                    const texture = this.textures.get('footballer');
+                    log('Frame count: ' + texture.frameTotal);
+                    
+                    // Create animation
+                    try {
+                        this.anims.create({
+                            key: 'run',
+                            frames: this.anims.generateFrameNumbers('footballer', { 
+                                start: 0, 
+                                end: 5 
+                            }),
+                            frameRate: 5,
+                            repeat: -1
+                        });
+                        log('✅ Animation created!');
+                    } catch (error) {
+                        log('❌ Animation error: ' + error.message);
+                    }
+                    
+                    // Display the sprite at different scales
+                    log('Creating sprites...');
+                    
+                    // Original size (256x256)
+                    const sprite1 = this.add.sprite(150, 200, 'footballer');
+                    sprite1.play('run');
+                    this.add.text(150, 350, 'Scale 1.0\n(256px)', {
+                        fontSize: '16px',
+                        fill: '#fff'
+                    }).setOrigin(0.5);
+                    
+                    // Half size (128x128)
+                    const sprite2 = this.add.sprite(400, 200, 'footballer');
+                    sprite2.setScale(0.5);
+                    sprite2.play('run');
+                    this.add.text(400, 350, 'Scale 0.5\n(128px)', {
+                        fontSize: '16px',
+                        fill: '#fff'
+                    }).setOrigin(0.5);
+                    
+                    // Quarter size (64x64) - what we use in game
+                    const sprite3 = this.add.sprite(600, 200, 'footballer');
+                    sprite3.setScale(0.25);
+                    sprite3.play('run');
+                    this.add.text(600, 350, 'Scale 0.25\n(64px)', {
+                        fontSize: '16px',
+                        fill: '#fff',
+                        backgroundColor: '#f00',
+                        padding: { x: 5, y: 5 }
+                    }).setOrigin(0.5);
+                    
+                    log('✅ Test complete! You should see 3 animated sprites above.');
+                    
+                } else {
+                    log('❌ Texture does not exist!');
+                    log('Available textures: ' + Object.keys(this.textures.list).join(', '));
+                    
+                    // Show a red circle as fallback
+                    this.add.circle(400, 200, 50, 0xff0000);
+                    this.add.text(400, 300, 'SPRITE FAILED TO LOAD', {
+                        fontSize: '24px',
+                        fill: '#f00'
+                    }).setOrigin(0.5);
+                }
+            }
+        }
+        
+        const config = {
+            type: Phaser.AUTO,
+            parent: 'game',
+            width: 800,
+            height: 400,
+            backgroundColor: '#1a1a1a',
+            scene: [TestScene]
+        };
+        
+        log('Creating game...');
+        const game = new Phaser.Game(config);
+    </script>
+</body>
+</html>

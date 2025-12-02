@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Phaser Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+        }
+        #game {
+            border: 2px solid red;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="color: white;">Phaser Test</h1>
+    <div id="game"></div>
+    
+    <!-- Load Phaser 3 from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+    
+    <script>
+        console.log('Script starting...');
+        console.log('Phaser loaded?', typeof Phaser !== 'undefined');
+        
+        class TestScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'TestScene' });
+            }
+            
+            create() {
+                console.log('TestScene create() called!');
+                this.add.text(400, 600, 'Hello Phaser!', {
+                    fontSize: '48px',
+                    fill: '#ffffff'
+                }).setOrigin(0.5);
+                
+                this.add.circle(400, 400, 50, 0xff0000);
+            }
+        }
+        
+        const config = {
+            type: Phaser.AUTO,
+            parent: 'game',
+            width: 800,
+            height: 1200,
+            backgroundColor: '#1a1a1a',
+            scene: [TestScene]
+        };
+        
+        console.log('Creating game...');
+        const game = new Phaser.Game(config);
+        console.log('Game created!');
+    </script>
+</body>
+</html>
