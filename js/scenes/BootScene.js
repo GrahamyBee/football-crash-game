@@ -26,6 +26,10 @@ class BootScene extends Phaser.Scene {
         // Load football image
         this.load.image('football', 'Assets/football.png');
         
+        // Load pitch background and goal
+        this.load.image('pitch_background', 'Assets/background.png');
+        this.load.image('goal_overlay', 'Assets/goal.png');
+        
         // Load opposition assets
         this.load.spritesheet('opposition_run', 'Assets/opposition_run.png', {
             frameWidth: 256,
