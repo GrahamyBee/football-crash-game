@@ -4,17 +4,11 @@ class BootScene extends Phaser.Scene {
     }
 
     preload() {
-        console.log('BootScene preload() starting...');
-        
         // Error handling - must be set before loading starts
         this.load.on('loaderror', (file) => {
             console.error('Error loading file:', file.src);
             console.error('File key:', file.key);
             console.error('File type:', file.type);
-        });
-        
-        this.load.on('complete', () => {
-            console.log('All assets loaded!');
         });
         
         // Load static footballer images for selection screen
@@ -61,23 +55,14 @@ class BootScene extends Phaser.Scene {
             frameWidth: 256,
             frameHeight: 256
         });
-        
-        console.log('All 4 static images and sprite sheets queued for loading');
     }
 
     create() {
-        console.log('BootScene create() starting...');
-        console.log('Checking textures...');
-        
         // Create animations for all 4 footballers
         const footballers = ['footballer1', 'footballer2', 'footballer3', 'footballer4'];
         
         footballers.forEach((key, index) => {
             if (this.textures.exists(key)) {
-                console.log(`${key} sprite sheet loaded successfully!`);
-                const texture = this.textures.get(key);
-                console.log(`${key} frame count:`, texture.frameTotal);
-                
                 // Create running animation for this footballer
                 try {
                     this.anims.create({
@@ -86,7 +71,6 @@ class BootScene extends Phaser.Scene {
                         frameRate: 5,  // 5 frames per second
                         repeat: -1      // Loop forever
                     });
-                    console.log(`Animation run${index + 1} created successfully!`);
                 } catch (error) {
                     console.error(`Error creating animation for ${key}:`, error);
                 }
@@ -97,7 +81,6 @@ class BootScene extends Phaser.Scene {
         
         // Create opposition running animation
         if (this.textures.exists('opposition_run')) {
-            console.log('opposition_run sprite sheet loaded successfully!');
             try {
                 this.anims.create({
                     key: 'opposition_run_anim',
@@ -105,14 +88,12 @@ class BootScene extends Phaser.Scene {
                     frameRate: 5,
                     repeat: -1
                 });
-                console.log('Opposition run animation created successfully!');
             } catch (error) {
                 console.error('Error creating opposition animation:', error);
             }
         }
         
         // Initialize game data
-        console.log('Initializing game data...');
         this.registry.set('selectedPlayer', null);
         this.registry.set('selectedStake', null);
         this.registry.set('currentMultiplier', 0);
@@ -125,9 +106,7 @@ class BootScene extends Phaser.Scene {
             this.registry.set('walletBalance', 10000); // £100.00 in pence
         }
         
-        console.log('Game data initialized, starting SelectionScene...');
         // Start the selection scene
         this.scene.start('SelectionScene');
-        console.log('SelectionScene started!');
     }
 }

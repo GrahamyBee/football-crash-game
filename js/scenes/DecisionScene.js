@@ -178,10 +178,23 @@ class DecisionScene extends Phaser.Scene {
     }
     
     shoot() {
-        // Transition to shooting scene
+        console.log('DecisionScene shoot() called');
+        
+        // Get the running scene
+        const runningScene = this.scene.get('RunningScene');
+        
+        console.log('RunningScene paused?', this.scene.isPaused('RunningScene'));
+        
+        // Resume the running scene first (it was paused when decision started)
+        this.scene.resume('RunningScene');
+        
+        console.log('Resumed RunningScene, now calling handleShooting');
+        
+        // Stop decision scene
         this.scene.stop();
-        this.scene.stop('RunningScene');
-        this.scene.start('ShootingScene');
+        
+        // Trigger shooting animation in RunningScene
+        runningScene.handleShooting();
     }
     
     cashOut() {

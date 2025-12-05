@@ -114,18 +114,6 @@ class RunningScene extends Phaser.Scene {
         // Set high z-index/depth to ensure it's on top of background
         this.goalOverlay.setDepth(1000);
         
-        // DEBUG: Check overlay alignment
-        console.log('=== GOAL OVERLAY CHECK ===');
-        console.log('Pitch Width:', this.pitchWidth);
-        console.log('Goal position (left edge):', this.goalOverlay.x);
-        console.log('Goal width (scaled):', goalWidth);
-        console.log('Goal right edge:', this.goalOverlay.x + goalWidth);
-        console.log('Background width (scaled):', bgWidth);
-        console.log('Number of background tiles:', numTiles);
-        console.log('Last background tile position:', bgWidth * (numTiles - 1));
-        console.log('Right edge alignment:', (this.goalOverlay.x + goalWidth) === this.pitchWidth ? '✓ PERFECT' : '✗ MISMATCH');
-        console.log('========================');
-        
         // Draw horizontal lanes - more space between lanes
         this.laneHeight = this.pitchHeight / 4;
         for (let i = 1; i < 4; i++) {
@@ -314,16 +302,11 @@ class RunningScene extends Phaser.Scene {
     }
     
     update(time, delta) {
-        // Don't skip update entirely - we need it for tweens and timers to work
+        // Allow update to run during shooting (for tweens and timers)
         if (!this.isRunning && !this.isShooting) return;
         
-        // Log occasionally to see if update is running
-        if (this.isShooting && Math.random() < 0.02) {
-            console.log('UPDATE RUNNING during shooting - isRunning:', this.isRunning, 'isShooting:', this.isShooting);
-        }
-        
-        // If shooting, skip game logic but let the method continue
-        // (Phaser processes tweens/timers during update, so we can't return early)
+        // If shooting, skip normal game logic but continue method execution
+        // This allows Phaser's tweens and timers to process
         if (!this.isShooting) {
             // Only run normal game logic when not shooting
             const deltaSeconds = delta / 1000;
@@ -935,8 +918,19 @@ class RunningScene extends Phaser.Scene {
     }
     
     handleShooting() {
-        // Force isRunning to true for shooting (it may have been paused by DecisionScene)
+        console.log('handleShooting called');
+        
+        // Make sure scene is active and not paused
+        if (this.scene.isPaused()) {
+            console.log('Scene was paused, resuming...');
+            this.scene.resume();
+        }
+        
+        // Set flags to allow update to run
+        this.isShooting = true;
         this.isRunning = true;
+        
+        console.log('isShooting:', this.isShooting, 'isRunning:', this.isRunning);
         
         // Get current player with ball
         const currentPlayer = this.players[this.selectedPlayer];
@@ -952,11 +946,6 @@ class RunningScene extends Phaser.Scene {
             return;
         }
         
-        // Determine if shot will be a goal based on player's lane
-        // Better accuracy from lanes closer to center (lanes 1 and 2)
-        const laneAccuracy = [0.7, 0.8, 0.6, 0.5]; // Lane 0-3 accuracy rates
-        const willScore = Math.random() < laneAccuracy[this.selectedPlayer];
-        
         // Hide the ball at player's feet
         ball.setVisible(false);
         
@@ -965,240 +954,174 @@ class RunningScene extends Phaser.Scene {
             currentPlayer.indicator.setVisible(false);
         }
         
-        // Create a new ball for the shooting animation
+        // Create a new ball for the shooting animation at player's position
         const shootingBall = this.add.image(
             currentPlayer.sprite.x + (47 * currentPlayer.perspectiveScale),
             currentPlayer.sprite.y + (40 * currentPlayer.perspectiveScale),
             'football'
         );
         shootingBall.setScale(0.08 * currentPlayer.perspectiveScale);
-        shootingBall.setDepth(1002); // Above everything initially
+        shootingBall.setDepth(1002);
         
-        // Ball stays at a fixed screen position (like the player)
-        const ballScreenX = shootingBall.x;
+        // Calculate target: right side of goal
+        const goalRightEdge = this.goalOverlay.x + (this.goalOverlay.width * this.goalOverlay.scaleX);
+        const goalCenterY = this.goalOverlay.y + (this.goalOverlay.height * this.goalOverlay.scaleY) / 2;
+        
+        // Arc height based on lane (higher lanes = lower arc)
+        const arcHeights = [200, 280, 350, 420];
+        const arcHeight = arcHeights[this.selectedPlayer];
+        
+        const shotDuration = 4000; // 4 seconds for the shot
+        
+        // Ball movement - starts at player, moves forward slowly
+        const ballStartX = shootingBall.x;
         const ballStartY = shootingBall.y;
+        const ballForwardMovement = 300; // Ball moves only 300px forward (slower)
+        const ballTargetX = ballStartX + ballForwardMovement;
         
-        // Calculate how far we need to scroll to reach the END of the background
-        // Background ends at pitchWidth
-        const distanceToEnd = this.pitchWidth - ballScreenX;
-        const distanceToGoal = this.goalOverlay.x - ballScreenX;
+        // Calculate how much the world needs to scroll to bring goal to ball
+        // The background will scroll much faster than the ball moves
+        const distanceToGoal = goalRightEdge - ballTargetX - 80; // Goal needs to reach ball + 80px offset
+        const scrollSpeed = distanceToGoal / (shotDuration / 1000); // pixels per second
         
-        console.log('Goal overlay at:', this.goalOverlay.x);
-        console.log('Background end at:', this.pitchWidth);
-        console.log('Ball screen position:', ballScreenX);
-        console.log('Distance to goal:', distanceToGoal);
-        console.log('Distance to end:', distanceToEnd);
+        console.log('Shot started:', {
+            ballStartX,
+            ballTargetX,
+            ballForwardMovement,
+            goalRightEdge,
+            distanceToGoal,
+            scrollSpeed,
+            shotDuration
+        });
         
-        // Fixed durations for consistent gameplay
-        const shotDuration = 4000; // Total shot takes 4 seconds
-        
-        // Arc height varies by lane - higher lanes (0) shoot lower, lower lanes (3) shoot higher
-        // Lane 0 (top) = 150px arc, Lane 3 (bottom) = 350px arc
-        // This keeps the ball within the background height (1200px)
-        const arcHeightByLane = [150, 220, 280, 350]; // Lane 0-3 arc heights
-        const arcHeight = arcHeightByLane[this.selectedPlayer];
-        
-        // Calculate scroll speed to reach END of background in 4 seconds
-        const baseSpeed = distanceToEnd / (shotDuration / 1000);
-        const scrollSpeed = baseSpeed * 1.5; // 1.5x to ensure we reach the end
-        
-        console.log('Base speed:', baseSpeed, 'px/s');
-        console.log('Final scroll speed:', scrollSpeed, 'px/s');
-        console.log('In 4 seconds will scroll:', scrollSpeed * 4, 'pixels');
-        
-        // Check if scene is paused
-        console.log('Scene paused?', this.scene.isPaused(), 'Scene active?', this.scene.isActive());
-        
-        // Make sure scene is not paused
-        if (this.scene.isPaused()) {
-            console.log('Scene was paused, resuming...');
-            this.scene.resume();
-        }
-        
-        // Set shooting flag (keep isRunning true so tweens work)
-        this.isShooting = true;
-        console.log('Set isShooting to true, isRunning:', this.isRunning);
-        
-        // Animate the ball in an arc
-        console.log('Starting arc animation, duration:', shotDuration);
-        const arcUpTween = this.tweens.add({
+        // Animate ball in arc pattern - moves forward slowly as it flies
+        // Part 1: Ball goes UP and FORWARD (slowly)
+        this.tweens.add({
             targets: shootingBall,
+            x: ballTargetX, // Move forward slowly
             y: ballStartY - arcHeight, // Go up
-            duration: shotDuration / 2,
-            ease: 'Quad.easeOut',
-            onStart: () => {
-                console.log('Arc up animation STARTED - tween is working!');
-            },
-            onUpdate: () => {
-                // Log periodically during animation
-                if (Math.random() < 0.05) { // 5% chance per frame
-                    console.log('Arc animation updating, ball Y:', shootingBall.y);
-                }
-            },
-            onComplete: () => {
-                console.log('Arc up complete, ball coming down');
-                // Ball comes back down - lands at bottom of screen for miss, or into goal
-                const finalY = willScore ? 
-                    ballStartY + 100 : // Land lower into goal area
-                    1100; // Land near bottom of screen (miss - hits ground)
-                
-                this.tweens.add({
-                    targets: shootingBall,
-                    y: finalY,
-                    duration: shotDuration / 2,
-                    ease: 'Quad.easeIn',
-                    onComplete: () => {
-                        console.log('Arc down complete, adding bounce');
-                        // Bounce when ball hits the ground/goal
-                        const bounceHeight = willScore ? 40 : 60; // Bigger bounce for miss
-                        this.tweens.add({
-                            targets: shootingBall,
-                            y: finalY - bounceHeight,
-                            duration: 250,
-                            ease: 'Quad.easeOut',
-                            onComplete: () => {
-                                // Ball settles after bounce
-                                this.tweens.add({
-                                    targets: shootingBall,
-                                    y: finalY,
-                                    duration: 250,
-                                    ease: 'Bounce.easeOut',
-                                    onComplete: () => {
-                                        console.log('Ball settled, animation complete');
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
-            }
+            scale: 0.12 * currentPlayer.perspectiveScale, // Grow slightly
+            duration: shotDuration * 0.5,
+            ease: 'Quad.easeOut'
         });
         
-        console.log('Arc tween created:', arcUpTween ? 'success' : 'failed');
+        // Part 2: Ball comes DOWN (stays at forward position)
+        this.time.delayedCall(shotDuration * 0.5, () => {
+            this.tweens.add({
+                targets: shootingBall,
+                y: goalCenterY, // Come down to goal height
+                scale: 0.15 * currentPlayer.perspectiveScale, // Grow more
+                duration: shotDuration * 0.5,
+                ease: 'Quad.easeIn'
+            });
+        });
         
-        // Spin the ball - more rotations for longer flight
+        // Spin the ball throughout flight
         this.tweens.add({
             targets: shootingBall,
-            angle: 1800, // 5 full rotations (increased from 3)
+            angle: 720, // 2 full rotations
             duration: shotDuration,
             ease: 'Linear'
         });
         
-        // Scale the ball (grows as it goes "further away")
-        this.tweens.add({
-            targets: shootingBall,
-            scale: 0.08 * currentPlayer.perspectiveScale * 2.5, // Grows 2.5x (increased from 1.5x)
-            duration: shotDuration,
-            ease: 'Linear'
-        });
-        
-        // Move ball horizontally across screen - 450 pixels past the visible edge
-        this.tweens.add({
-            targets: shootingBall,
-            x: 1250, // Move 450 pixels past the right edge of screen (800 + 450 = 1250)
-            duration: shotDuration,
-            ease: 'Linear'
-        });
-        
-        // Scroll the world to the goal at high speed
-        console.log('Setting up scroll interval');
+        // Scroll the world to bring goal to the ball
         const scrollStartTime = this.time.now;
-        const scrollStartCameraX = this.cameraScrollX; // Track starting position
-        let frameCount = 0;
-        let ballHasLanded = false;
+        let totalScrolled = 0;
+        let goalHit = false;
         
-        const scrollInterval = this.time.addEvent({
-            delay: 16, // Run every frame (~60fps)
-            repeat: Math.ceil(shotDuration / 16), // 250 frames for 4 seconds
+        const scrollLoop = this.time.addEvent({
+            delay: 16, // Every frame (~60fps)
+            repeat: -1, // Repeat indefinitely until we stop it
             callback: () => {
-                if (frameCount === 0) {
-                    console.log('FIRST CALLBACK EXECUTED!');
-                }
-                frameCount++;
-                if (frameCount <= 5 || frameCount % 30 === 0) { // Log first 5 frames and then every 30 frames
-                    console.log('Scroll frame:', frameCount, 'Ball at:', shootingBall.x, shootingBall.y);
-                }
-                
                 const elapsed = this.time.now - scrollStartTime;
-                const progress = Math.min(elapsed / shotDuration, 1);
                 
-                // Calculate how much to scroll this frame at constant high speed
-                const frameTime = 16 / 1000; // 16ms in seconds
-                const scrollThisFrame = scrollSpeed * frameTime;
+                // Check if goal has reached the ball position
+                const currentGoalRightEdge = this.goalOverlay.x + (this.goalOverlay.width * this.goalOverlay.scaleX);
+                const ballCurrentX = shootingBall.x;
                 
-                if (frameCount <= 5) {
-                    console.log('Scrolling:', scrollThisFrame, 'pixels this frame, speed:', scrollSpeed);
+                // When goal right edge reaches ball (with 100px buffer)
+                if (!goalHit && currentGoalRightEdge <= (ballCurrentX + 100)) {
+                    goalHit = true;
+                    console.log('Goal hit ball!', {
+                        currentGoalRightEdge,
+                        ballCurrentX,
+                        totalScrolled
+                    });
+                    
+                    // Ball hits the goal
+                    shootingBall.setDepth(999); // Behind goal
+                    
+                    // Stop scrolling
+                    scrollLoop.remove();
+                    
+                    // Snap ball to goal and bounce
+                    this.tweens.killTweensOf(shootingBall);
+                    this.tweens.add({
+                        targets: shootingBall,
+                        x: currentGoalRightEdge - 80,
+                        y: goalCenterY,
+                        duration: 100,
+                        ease: 'Power2',
+                        onComplete: () => {
+                            this.tweens.add({
+                                targets: shootingBall,
+                                x: currentGoalRightEdge - 100,
+                                duration: 150,
+                                ease: 'Bounce.easeOut',
+                                onComplete: () => {
+                                    // After bounce, wait 5 seconds then show result
+                                    console.log('Ball bounced, waiting 5 seconds...');
+                                    this.time.delayedCall(5000, () => {
+                                        console.log('Showing outcome scene');
+                                        this.isShooting = false;
+                                        this.handleShootingResult(true);
+                                    });
+                                }
+                            });
+                        }
+                    });
+                    return;
                 }
                 
-                // Keep scrolling continuously - don't stop
-                // Move background tiles manually at high speed
+                // Safety: if we've been scrolling too long, stop
+                if (elapsed >= shotDuration + 3000) {
+                    console.log('Shot timeout - stopping scroll');
+                    scrollLoop.remove();
+                    // Wait 5 seconds then show result
+                    this.time.delayedCall(5000, () => {
+                        this.isShooting = false;
+                        this.handleShootingResult(true);
+                    });
+                    return;
+                }
+                
+                const frameTime = 16 / 1000;
+                const scrollAmount = scrollSpeed * frameTime;
+                totalScrolled += scrollAmount;
+                
+                // Move background, goal, players, and opponents LEFT (world scrolls right)
                 this.backgroundTiles.forEach(tile => {
-                    tile.x -= scrollThisFrame;
+                    tile.x -= scrollAmount;
                 });
                 
-                // Move goal overlay at high speed
-                this.goalOverlay.x -= scrollThisFrame;
+                this.goalOverlay.x -= scrollAmount;
+                this.cameraScrollX += scrollAmount;
                 
-                // Update camera scroll tracking
-                this.cameraScrollX += scrollThisFrame;
-                
-                // Move all players left with the background at same speed
-                this.players.forEach((player) => {
-                    if (player.sprite) {
-                        player.sprite.x -= scrollThisFrame;
-                    }
-                    // Don't update ball position - shooting ball is separate
-                    // Just update indicator if it exists
-                    if (player.indicator) {
-                        player.indicator.x -= scrollThisFrame;
-                    }
+                this.players.forEach(player => {
+                    if (player.sprite) player.sprite.x -= scrollAmount;
+                    if (player.ball) player.ball.x -= scrollAmount;
+                    if (player.indicator) player.indicator.x -= scrollAmount;
                 });
                 
-                // Move all opponents left with the background at same speed
-                this.opponents.forEach((laneOpponents) => {
-                    laneOpponents.forEach((opponent) => {
+                this.opponents.forEach(laneOpponents => {
+                    laneOpponents.forEach(opponent => {
                         if (opponent && opponent.active !== false) {
-                            opponent.x -= scrollThisFrame;
+                            opponent.x -= scrollAmount;
                         }
                     });
                 });
-                
-                // Ball moves with tween (no longer fixed at ballScreenX)
-                // Calculate how far we've scrolled
-                const totalScrolledDistance = (this.cameraScrollX - scrollStartCameraX);
-                
-                // Check if goal has reached the ball's current position (ball is moving to 800)
-                const goalReachedBall = this.goalOverlay.x <= shootingBall.x;
-                
-                // Set ball depth when goal reaches ball position
-                if (goalReachedBall && !ballHasLanded) {
-                    ballHasLanded = true;
-                    console.log('Goal reached ball! Goal at:', this.goalOverlay.x, 'Ball at:', shootingBall.x, 'Scrolled:', totalScrolledDistance);
-                    
-                    // Set ball depth based on result
-                    if (willScore) {
-                        shootingBall.setDepth(999); // Behind goal overlay (scored)
-                    } else {
-                        shootingBall.setDepth(1001); // In front of goal overlay (missed)
-                    }
-                }
-                
-                // When time is up (4 seconds)
-                if (progress >= 1) {
-                    console.log('4 seconds complete! Total scrolled:', totalScrolledDistance, '/', distanceToEnd);
-                    scrollInterval.remove();
-                    
-                    // Wait 6 seconds after animation completes before showing result
-                    this.time.delayedCall(6000, () => {
-                        console.log('Transitioning to outcome scene');
-                        this.isShooting = false;
-                        this.handleShootingResult(willScore);
-                    });
-                }
             }
         });
-        
-        console.log('Scroll interval created, will run for', Math.ceil(shotDuration / 16), 'frames');
     }
     
     handleShootingResult(scored) {
