@@ -48,6 +48,13 @@ class SelectionScene extends Phaser.Scene {
             height - 80
         );
         
+        // Force Goal button at bottom right
+        this.forceGoalEnabled = false;
+        this.forceGoalButton = this.createForceGoalButton(
+            width - 150,
+            height - 80
+        );
+        
         // Confirm button (initially hidden)
         this.confirmButton = this.createButton(
             width / 2 - 100,
@@ -393,6 +400,46 @@ class SelectionScene extends Phaser.Scene {
             } else {
                 button.bg.setFillStyle(0x666666); // Gray when inactive
                 button.label.setText('TEST MODE: OFF');
+            }
+        });
+        
+        return button;
+    }
+    
+    createForceGoalButton(x, y) {
+        const button = this.add.container(x, y);
+        
+        const bg = this.add.rectangle(0, 0, 250, 60, 0x666666);
+        
+        const label = this.add.text(0, 0, 'FORCE GOAL: OFF', {
+            fontSize: '20px',
+            fontStyle: 'bold',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+        
+        button.add([bg, label]);
+        
+        // Store properties
+        button.bg = bg;
+        button.label = label;
+        
+        // Make the container itself interactive
+        button.setSize(250, 60);
+        button.setInteractive({ useHandCursor: true });
+        
+        // Toggle force goal mode on click
+        button.on('pointerdown', () => {
+            this.forceGoalEnabled = !this.forceGoalEnabled;
+            
+            // Store in registry so RunningScene can access it
+            this.registry.set('forceGoal', this.forceGoalEnabled);
+            
+            if (this.forceGoalEnabled) {
+                button.bg.setFillStyle(0xFFD700); // Gold when active
+                button.label.setText('FORCE GOAL: ON');
+            } else {
+                button.bg.setFillStyle(0x666666); // Gray when inactive
+                button.label.setText('FORCE GOAL: OFF');
             }
         });
         

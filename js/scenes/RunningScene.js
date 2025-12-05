@@ -963,9 +963,25 @@ class RunningScene extends Phaser.Scene {
         shootingBall.setScale(0.08 * currentPlayer.perspectiveScale);
         shootingBall.setDepth(1002);
         
+        // Check if we're forcing a goal (test mode)
+        const forceGoal = this.registry.get('forceGoal') || false;
+        
+        // Determine if shot will score
+        // In test mode, always score. Otherwise, random chance (you can adjust this later)
+        const willScore = forceGoal ? true : (Math.random() > 0.5);
+        
         // Calculate target: right side of goal
         const goalRightEdge = this.goalOverlay.x + (this.goalOverlay.width * this.goalOverlay.scaleX);
-        const goalCenterY = this.goalOverlay.y + (this.goalOverlay.height * this.goalOverlay.scaleY) / 2;
+        const goalTop = this.goalOverlay.y;
+        const goalHeight = this.goalOverlay.height * this.goalOverlay.scaleY;
+        const goalCenterY = goalTop + (goalHeight / 2);
+        
+        // Ball landing position depends on whether it's a goal or miss
+        // Goal: 30% from top (higher)
+        // Miss: 80% from top (lower)
+        const ballLandingY = willScore 
+            ? goalTop + (goalHeight * 0.3) 
+            : goalTop + (goalHeight * 0.8);
         
         // Arc height based on lane (higher lanes = lower arc)
         const arcHeights = [200, 280, 350, 420];
@@ -984,6 +1000,9 @@ class RunningScene extends Phaser.Scene {
         const distanceToGoal = goalRightEdge - ballTargetX - 80; // Goal needs to reach ball + 80px offset
         const scrollSpeed = distanceToGoal / (shotDuration / 1000); // pixels per second
         
+        // Target ball size: same as player 4's ball (0.08 * 2.0 = 0.16)
+        const targetBallScale = 0.16;
+        
         console.log('Shot started:', {
             ballStartX,
             ballTargetX,
@@ -991,26 +1010,59 @@ class RunningScene extends Phaser.Scene {
             goalRightEdge,
             distanceToGoal,
             scrollSpeed,
-            shotDuration
+            shotDuration,
+            currentPlayerIndex: this.selectedPlayer,
+            startScale: shootingBall.scale,
+            targetScale: targetBallScale
+        });
+        
+        // Create multiplier text in center of screen
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        const multiplierText = this.add.text(width / 2, height / 2, '1.0x', {
+            fontSize: '120px',
+            fontStyle: 'bold',
+            fill: '#FFD700', // Gold color
+            stroke: '#000000',
+            strokeThickness: 8
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+        
+        // Animate multiplier from 1.0x to 10.0x over the shot duration
+        let currentMultiplier = 1.0;
+        const maxMultiplier = 10.0;
+        const multiplierIncrement = (maxMultiplier - 1.0) / (shotDuration / 50); // Update every 50ms
+        
+        const multiplierTimer = this.time.addEvent({
+            delay: 50,
+            repeat: shotDuration / 50,
+            callback: () => {
+                currentMultiplier += multiplierIncrement;
+                if (currentMultiplier <= maxMultiplier) {
+                    multiplierText.setText(currentMultiplier.toFixed(1) + 'x');
+                }
+            }
         });
         
         // Animate ball in arc pattern - moves forward slowly as it flies
         // Part 1: Ball goes UP and FORWARD (slowly)
+        // Scale grows to halfway to target size
+        const midScale = (shootingBall.scale + targetBallScale) / 2;
         this.tweens.add({
             targets: shootingBall,
             x: ballTargetX, // Move forward slowly
             y: ballStartY - arcHeight, // Go up
-            scale: 0.12 * currentPlayer.perspectiveScale, // Grow slightly
+            scale: midScale, // Grow to midpoint
             duration: shotDuration * 0.5,
             ease: 'Quad.easeOut'
         });
         
         // Part 2: Ball comes DOWN (stays at forward position)
+        // Scale reaches target (player 4's ball size)
         this.time.delayedCall(shotDuration * 0.5, () => {
             this.tweens.add({
                 targets: shootingBall,
-                y: goalCenterY, // Come down to goal height
-                scale: 0.15 * currentPlayer.perspectiveScale, // Grow more
+                y: ballLandingY, // Come down to goal height (80% down from top)
+                scale: targetBallScale, // Grow to player 4's ball size
                 duration: shotDuration * 0.5,
                 ease: 'Quad.easeIn'
             });
@@ -1054,12 +1106,77 @@ class RunningScene extends Phaser.Scene {
                     // Stop scrolling
                     scrollLoop.remove();
                     
+                    // Stop multiplier timer
+                    multiplierTimer.remove();
+                    
+                    // Show result based on willScore
+                    if (willScore) {
+                        // GOAL! Keep multiplier and add win text
+                        // Current prize (shown at top) × shooting multiplier = Total Win
+                        const currentPrizeInPence = this.selectedStake * this.currentMultiplier;
+                        const totalWinInPence = currentPrizeInPence * currentMultiplier;
+                        
+                        const winText = this.add.text(width / 2, height / 2 + 100, 'TOTAL WIN', {
+                            fontSize: '60px',
+                            fontStyle: 'bold',
+                            fill: '#FFD700',
+                            stroke: '#000000',
+                            strokeThickness: 6
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                        const amountText = this.add.text(width / 2, height / 2 + 170, `£${(totalWinInPence / 100).toFixed(2)}`, {
+                            fontSize: '80px',
+                            fontStyle: 'bold',
+                            fill: '#00FF00',
+                            stroke: '#000000',
+                            strokeThickness: 8
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                    } else {
+                        // MISS! Remove multiplier and show game over
+                        multiplierText.destroy();
+                        
+                        const stake = this.registry.get('selectedStake') || 100;
+                        
+                        const gameOverText = this.add.text(width / 2, height / 2 - 80, 'GAME OVER', {
+                            fontSize: '80px',
+                            fontStyle: 'bold',
+                            fill: '#FF0000',
+                            stroke: '#000000',
+                            strokeThickness: 8
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                        const missText = this.add.text(width / 2, height / 2, 'You Missed!', {
+                            fontSize: '50px',
+                            fontStyle: 'bold',
+                            fill: '#FFFFFF',
+                            stroke: '#000000',
+                            strokeThickness: 6
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                        const luckText = this.add.text(width / 2, height / 2 + 60, 'Better luck next time', {
+                            fontSize: '40px',
+                            fontStyle: 'bold',
+                            fill: '#FFFFFF',
+                            stroke: '#000000',
+                            strokeThickness: 5
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                        const lostText = this.add.text(width / 2, height / 2 + 120, `You have lost £${(stake / 100).toFixed(2)}`, {
+                            fontSize: '35px',
+                            fontStyle: 'bold',
+                            fill: '#FF0000',
+                            stroke: '#000000',
+                            strokeThickness: 5
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                    }
+                    
                     // Snap ball to goal and bounce
                     this.tweens.killTweensOf(shootingBall);
                     this.tweens.add({
                         targets: shootingBall,
                         x: currentGoalRightEdge - 80,
-                        y: goalCenterY,
+                        y: ballLandingY,
                         duration: 100,
                         ease: 'Power2',
                         onComplete: () => {
@@ -1070,11 +1187,11 @@ class RunningScene extends Phaser.Scene {
                                 ease: 'Bounce.easeOut',
                                 onComplete: () => {
                                     // After bounce, wait 5 seconds then show result
-                                    console.log('Ball bounced, waiting 5 seconds...');
+                                    console.log('Ball bounced, waiting 5 seconds...', 'willScore:', willScore);
                                     this.time.delayedCall(5000, () => {
                                         console.log('Showing outcome scene');
                                         this.isShooting = false;
-                                        this.handleShootingResult(true);
+                                        this.handleShootingResult(willScore);
                                     });
                                 }
                             });
@@ -1085,12 +1202,78 @@ class RunningScene extends Phaser.Scene {
                 
                 // Safety: if we've been scrolling too long, stop
                 if (elapsed >= shotDuration + 3000) {
-                    console.log('Shot timeout - stopping scroll');
+                    console.log('Shot timeout - stopping scroll', 'willScore:', willScore);
                     scrollLoop.remove();
+                    
+                    // Stop multiplier timer
+                    multiplierTimer.remove();
+                    
+                    // Show result based on willScore
+                    if (willScore) {
+                        // GOAL! Keep multiplier and add win text
+                        // Current prize (shown at top) × shooting multiplier = Total Win
+                        const currentPrizeInPence = this.selectedStake * this.currentMultiplier;
+                        const totalWinInPence = currentPrizeInPence * currentMultiplier;
+                        
+                        const winText = this.add.text(width / 2, height / 2 + 100, 'TOTAL WIN', {
+                            fontSize: '60px',
+                            fontStyle: 'bold',
+                            fill: '#FFD700',
+                            stroke: '#000000',
+                            strokeThickness: 6
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                        const amountText = this.add.text(width / 2, height / 2 + 170, `£${(totalWinInPence / 100).toFixed(2)}`, {
+                            fontSize: '80px',
+                            fontStyle: 'bold',
+                            fill: '#00FF00',
+                            stroke: '#000000',
+                            strokeThickness: 8
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                    } else {
+                        // MISS! Remove multiplier and show game over
+                        multiplierText.destroy();
+                        
+                        const stake = this.registry.get('selectedStake') || 100;
+                        
+                        const gameOverText = this.add.text(width / 2, height / 2 - 80, 'GAME OVER', {
+                            fontSize: '80px',
+                            fontStyle: 'bold',
+                            fill: '#FF0000',
+                            stroke: '#000000',
+                            strokeThickness: 8
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                        const missText = this.add.text(width / 2, height / 2, 'You Missed!', {
+                            fontSize: '50px',
+                            fontStyle: 'bold',
+                            fill: '#FFFFFF',
+                            stroke: '#000000',
+                            strokeThickness: 6
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                        const luckText = this.add.text(width / 2, height / 2 + 60, 'Better luck next time', {
+                            fontSize: '40px',
+                            fontStyle: 'bold',
+                            fill: '#FFFFFF',
+                            stroke: '#000000',
+                            strokeThickness: 5
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                        const lostText = this.add.text(width / 2, height / 2 + 120, `You have lost £${(stake / 100).toFixed(2)}`, {
+                            fontSize: '35px',
+                            fontStyle: 'bold',
+                            fill: '#FF0000',
+                            stroke: '#000000',
+                            strokeThickness: 5
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                    }
+                    
                     // Wait 5 seconds then show result
                     this.time.delayedCall(5000, () => {
                         this.isShooting = false;
-                        this.handleShootingResult(true);
+                        this.handleShootingResult(willScore);
                     });
                     return;
                 }
