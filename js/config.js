@@ -8,8 +8,8 @@ const GameConfig = {
     MAX_MULTIPLIER: 500,
     
     // Running phase settings
-    RUNNING_SPEED: 100, // pixels per second
-    MULTIPLIER_INCREASE_RATE: 1.5, // multiplier increase per second (increased for visibility)
+    RUNNING_SPEED: 72, // pixels per second (10% slower to prevent running off background)
+    MULTIPLIER_INCREASE_RATE: 0.5, // multiplier increase per second (0.5x per second = 6s to reach 3x)
     
     // Decision intervals (in seconds of running)
     DECISION_INTERVALS: [3, 6, 9, 12, 15], // intervals at 3s, 6s, 9s, etc.

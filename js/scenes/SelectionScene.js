@@ -41,6 +41,13 @@ class SelectionScene extends Phaser.Scene {
         // Player selection
         this.createPlayerSelection();
         
+        // Test Mode button at bottom left
+        this.testModeEnabled = false;
+        this.testModeButton = this.createTestModeButton(
+            150,
+            height - 80
+        );
+        
         // Confirm button (initially hidden)
         this.confirmButton = this.createButton(
             width / 2 - 100,
@@ -355,6 +362,43 @@ class SelectionScene extends Phaser.Scene {
         return button;
     }
     
+    createTestModeButton(x, y) {
+        const button = this.add.container(x, y);
+        
+        const bg = this.add.rectangle(0, 0, 250, 60, 0x666666);
+        
+        const label = this.add.text(0, 0, 'TEST MODE: OFF', {
+            fontSize: '20px',
+            fontStyle: 'bold',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+        
+        button.add([bg, label]);
+        
+        // Store properties
+        button.bg = bg;
+        button.label = label;
+        
+        // Make the container itself interactive
+        button.setSize(250, 60);
+        button.setInteractive({ useHandCursor: true });
+        
+        // Toggle test mode on click
+        button.on('pointerdown', () => {
+            this.testModeEnabled = !this.testModeEnabled;
+            
+            if (this.testModeEnabled) {
+                button.bg.setFillStyle(0xff9800); // Orange when active
+                button.label.setText('TEST MODE: ON');
+            } else {
+                button.bg.setFillStyle(0x666666); // Gray when inactive
+                button.label.setText('TEST MODE: OFF');
+            }
+        });
+        
+        return button;
+    }
+    
     createButton(x, y, text, callback, color = 0x4CAF50) {
         const button = this.add.container(x, y);
         
@@ -391,6 +435,7 @@ class SelectionScene extends Phaser.Scene {
         this.registry.set('currentMultiplier', 0);
         this.registry.set('activePlayers', [true, true, true, true]);
         this.registry.set('playerPositions', [0, 0, 0, 0]);
+        this.registry.set('testModeEnabled', this.testModeEnabled); // Pass test mode to running scene
         
         // Start running scene
         this.scene.start('RunningScene');

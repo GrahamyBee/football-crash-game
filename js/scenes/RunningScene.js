@@ -13,6 +13,7 @@ class RunningScene extends Phaser.Scene {
         this.currentMultiplier = 0;
         this.activePlayers = [true, true, true, true];
         this.playerPositions = [0, 0, 0, 0];
+        this.testModeEnabled = this.registry.get('testModeEnabled') || false;
         
         // Decision thresholds based on MULTIPLES of stake
         // 3x (3s), 8x (+5x/5s), 13x (+5x/5s), 20x (+7x/7s)
@@ -47,6 +48,7 @@ class RunningScene extends Phaser.Scene {
         this.currentWaveCount = 0; // Number of opponents in current wave
         this.waveOpponentsSpawned = 0; // How many spawned so far
         this.allWaveOpponentsGone = false; // All wave opponents off screen or destroyed
+        this.waveSpawnedThisSection = false; // Flag: has a wave been spawned for current decision section
         
         // Create pitch
         this.createPitch();
@@ -361,14 +363,11 @@ class RunningScene extends Phaser.Scene {
                         this.triggerDecisionInterval();
                     }
                 } else {
-                    // For subsequent decisions, wait until wave is complete
-                    if (this.allWaveOpponentsGone) {
-                        this.waitingForDecision = true;
-                        this.decisionTriggered = true;
-                        this.triggerDecisionInterval();
-                    } else {
-                        // Still waiting for wave to complete...
-                    }
+                    // For subsequent decisions, trigger immediately
+                    // Opposition will be cleared in triggerDecisionInterval
+                    this.waitingForDecision = true;
+                    this.decisionTriggered = true;
+                    this.triggerDecisionInterval();
                 }
             }
         }
@@ -422,6 +421,11 @@ class RunningScene extends Phaser.Scene {
     }
     
     updateOpponents(deltaSeconds) {
+        // Block all spawning if test mode is enabled
+        if (this.testModeEnabled) {
+            return; // Skip all opposition spawning in test mode
+        }
+        
         // Block all spawning if waiting for decision
         if (this.waitingForDecision) {
             // Don't spawn anything while decision window is ready
@@ -435,14 +439,11 @@ class RunningScene extends Phaser.Scene {
                 const shuffledLanes = allLanes.sort(() => Math.random() - 0.5);
                 const selectedLanes = shuffledLanes.slice(0, opponentCount);
                 
-                // Spawn opponents with slight delays so they arrive spread over 3 seconds
+                // Spawn all opponents at the same time
                 selectedLanes.forEach((lane, index) => {
-                    const delay = index * 0.6; // 0.6 second spacing
-                    this.time.delayedCall(delay * 1000, () => {
-                        if (this.players[lane] && this.players[lane].active) {
-                            this.spawnOpponent(lane);
-                        }
-                    });
+                    if (this.players[lane] && this.players[lane].active) {
+                        this.spawnOpponent(lane);
+                    }
                 });
                 
                 this.preDecisionOpponentCount = opponentCount;
@@ -451,9 +452,11 @@ class RunningScene extends Phaser.Scene {
             }
             
             this.preDecisionOpponentsSpawned = true;
-        } else if (!this.isPreFirstDecision && !this.currentWaveActive) {
+        } else if (!this.isPreFirstDecision && !this.currentWaveActive && !this.waveSpawnedThisSection) {
             // WAVE SYSTEM: After first decision
+            // Only start new wave if no wave has been spawned for this decision section yet
             this.startNewWave();
+            this.waveSpawnedThisSection = true; // Mark that a wave has been spawned for this section
         } else if (this.currentWaveActive && this.waveOpponentsSpawned < this.currentWaveCount) {
             // Spawn wave opponents with spacing
             if (!this.lastOpponentSpawnTime || this.elapsedTime - this.lastOpponentSpawnTime > 0.8) {
@@ -1283,9 +1286,12 @@ class RunningScene extends Phaser.Scene {
         // Move to next decision index
         this.currentDecisionIndex++;
         
-        // Reset wave state for next wave
+        // Reset wave state for next wave - start fresh
         this.currentWaveActive = false;
-        this.allWaveOpponentsGone = false;
+        this.allWaveOpponentsGone = true; // Set to true so new wave can start immediately
+        this.waveOpponentsSpawned = 0;
+        this.currentWaveCount = 0;
+        this.waveSpawnedThisSection = false; // Reset flag for new decision section
     }
     
     gameOver() {
