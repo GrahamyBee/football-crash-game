@@ -97,22 +97,34 @@ class RunningScene extends Phaser.Scene {
             this.backgroundTiles.push(tile);
         }
         
-        // Add goal overlay with same height scaling as background
-        // Position so RIGHT edge of goal aligns with RIGHT edge of background
+        // Add goal overlay - position at the RIGHT EDGE to overlay the last background section
+        // The goal should be at the end of the pitch (right side)
         this.goalOverlay = this.add.image(0, this.pitchY, 'goal_overlay')
-            .setOrigin(0, 0);
+            .setOrigin(0, 0); // Same origin as background tiles
         
-        // Scale the goal overlay to match background height
-        const goalHeight = this.goalOverlay.height;
-        const goalScaleY = this.pitchHeight / goalHeight;
-        this.goalOverlay.setScale(goalScaleY);
+        // Scale the goal overlay to match background height (same scaleY as background)
+        this.goalOverlay.setScale(scaleY); // Use same scale as background tiles
         
-        // Now position it so right edge aligns with background right edge
-        const goalWidth = this.goalOverlay.width * goalScaleY;
-        this.goalOverlay.x = this.pitchWidth - goalWidth;
+        // Position goal - move 110% further right from the calculated edge position
+        const goalWidth = this.goalOverlay.width * scaleY;
+        const basePosition = this.pitchWidth - goalWidth;
+        const rightwardAdjustment = goalWidth * 1.1; // Move 110% of goal width to the right (30% + 50% + 30%)
+        this.goalOverlay.x = basePosition + rightwardAdjustment;
         
-        // Set high z-index/depth to ensure it's on top
+        // Set high z-index/depth to ensure it's on top of background
         this.goalOverlay.setDepth(1000);
+        
+        // DEBUG: Check overlay alignment
+        console.log('=== GOAL OVERLAY CHECK ===');
+        console.log('Pitch Width:', this.pitchWidth);
+        console.log('Goal position (left edge):', this.goalOverlay.x);
+        console.log('Goal width (scaled):', goalWidth);
+        console.log('Goal right edge:', this.goalOverlay.x + goalWidth);
+        console.log('Background width (scaled):', bgWidth);
+        console.log('Number of background tiles:', numTiles);
+        console.log('Last background tile position:', bgWidth * (numTiles - 1));
+        console.log('Right edge alignment:', (this.goalOverlay.x + goalWidth) === this.pitchWidth ? '✓ PERFECT' : '✗ MISMATCH');
+        console.log('========================');
         
         // Draw horizontal lanes - more space between lanes
         this.laneHeight = this.pitchHeight / 4;
