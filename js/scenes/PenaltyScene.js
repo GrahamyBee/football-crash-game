@@ -154,8 +154,6 @@ class PenaltyScene extends Phaser.Scene {
         const targetX = selectedZone.zoneX;
         const targetY = selectedZone.zoneY;
         
-        console.log('Penalty:', { zoneName, multiplier, isGoal });
-        
         if (isGoal) {
             this.handleGoal(zoneName, multiplier, targetX, targetY);
         } else {
@@ -187,6 +185,23 @@ class PenaltyScene extends Phaser.Scene {
                 
                 // Calculate total win
                 const totalWin = this.currentPrize * multiplier;
+                
+                // Store breakdown for OutcomeScene
+                const crashMultiplier = this.registry.get('currentMultiplier') || 1.0;
+                this.registry.set('crashMultiplier', crashMultiplier);
+                this.registry.set('shootingMultiplier', multiplier); // Penalty zone multiplier
+                this.registry.set('crashWinAmount', this.currentPrize / 100); // Crash game winnings in pounds
+                this.registry.set('finalMultiplier', crashMultiplier * multiplier); // Total combined multiplier
+                
+                console.log('PenaltyScene - Storing values:', {
+                    currentPrize: this.currentPrize,
+                    multiplier: multiplier,
+                    crashMultiplier: crashMultiplier,
+                    crashWinAmount: this.currentPrize / 100,
+                    finalMultiplier: crashMultiplier * multiplier,
+                    totalWin: totalWin,
+                    totalWinInPounds: totalWin / 100
+                });
                 
                 // Show multiplier on ball
                 const multiplierText = this.add.text(targetX, targetY - 30, `x${multiplier}`, {
@@ -244,8 +259,12 @@ class PenaltyScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        // GOAL text
-        const goalText = this.add.text(width / 2, height / 2 - 100, 'GOAL!', {
+        // Add winnings to wallet
+        const currentBalance = this.registry.get('walletBalance') || 0;
+        this.registry.set('walletBalance', currentBalance + totalWin);
+        
+        // YOU WIN!!! text
+        const youWinText = this.add.text(width / 2, height / 2 - 100, 'YOU WIN!!!', {
             fontSize: '100px',
             fontStyle: 'bold',
             fill: '#00FF00',
@@ -253,8 +272,8 @@ class PenaltyScene extends Phaser.Scene {
             strokeThickness: 10
         }).setOrigin(0.5).setDepth(20);
         
-        // Total win text
-        const winText = this.add.text(width / 2, height / 2, 'TOTAL WIN', {
+        // You won text
+        const winText = this.add.text(width / 2, height / 2, 'You won:', {
             fontSize: '50px',
             fontStyle: 'bold',
             fill: '#FFD700',
@@ -272,10 +291,12 @@ class PenaltyScene extends Phaser.Scene {
         
         // Wait then go to outcome scene
         this.time.delayedCall(3000, () => {
-            this.scene.start('OutcomeScene', {
-                won: true,
-                finalAmount: totalWin
-            });
+            // Set registry values for OutcomeScene
+            this.registry.set('won', true);
+            this.registry.set('finalValue', totalWin / 100); // Convert to pounds
+            this.registry.set('outcomeType', 'goal');
+            
+            this.scene.start('OutcomeScene');
         });
     }
     
@@ -311,10 +332,13 @@ class PenaltyScene extends Phaser.Scene {
         
         // Wait then go to outcome scene
         this.time.delayedCall(3000, () => {
-            this.scene.start('OutcomeScene', {
-                won: false,
-                finalAmount: 0
-            });
+            // Set registry values for OutcomeScene
+            this.registry.set('won', false);
+            this.registry.set('finalValue', 0);
+            this.registry.set('finalMultiplier', 0);
+            this.registry.set('outcomeType', 'miss');
+            
+            this.scene.start('OutcomeScene');
         });
     }
     

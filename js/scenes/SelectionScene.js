@@ -238,7 +238,6 @@ class SelectionScene extends Phaser.Scene {
         
         // Use pointerdown for better mobile response
         button.on('pointerdown', () => {
-            console.log('Player button clicked:', playerIndex);
             this.selectPlayer(playerIndex, button);
         });
         
@@ -246,8 +245,6 @@ class SelectionScene extends Phaser.Scene {
     }
     
     selectPlayer(playerIndex, button) {
-        console.log('selectPlayer called for index:', playerIndex);
-        
         // Deselect all players - reset text color and stroke to white/black
         this.playerButtons.forEach(btn => {
             if (btn.nameText) {
@@ -260,11 +257,9 @@ class SelectionScene extends Phaser.Scene {
         if (button.nameText) {
             button.nameText.setFill('#ffff00'); // Yellow text
             button.nameText.setStroke('#00ff00', 6); // Thick green stroke
-            console.log('Text color changed for player:', playerIndex);
         }
         
         this.selectedPlayer = playerIndex;
-        console.log('Selected player is now:', this.selectedPlayer);
         
         this.checkConfirmButton();
     }

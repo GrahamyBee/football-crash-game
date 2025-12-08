@@ -918,19 +918,14 @@ class RunningScene extends Phaser.Scene {
     }
     
     handleShooting() {
-        console.log('handleShooting called');
-        
         // Make sure scene is active and not paused
         if (this.scene.isPaused()) {
-            console.log('Scene was paused, resuming...');
             this.scene.resume();
         }
         
         // Set flags to allow update to run
         this.isShooting = true;
         this.isRunning = true;
-        
-        console.log('isShooting:', this.isShooting, 'isRunning:', this.isRunning);
         
         // Get current player with ball
         const currentPlayer = this.players[this.selectedPlayer];
@@ -987,8 +982,6 @@ class RunningScene extends Phaser.Scene {
         const arcHeights = [200, 280, 350, 420];
         const arcHeight = arcHeights[this.selectedPlayer];
         
-        const shotDuration = 4000; // 4 seconds for the shot
-        
         // Ball movement - starts at player, moves forward slowly
         const ballStartX = shootingBall.x;
         const ballStartY = shootingBall.y;
@@ -998,23 +991,26 @@ class RunningScene extends Phaser.Scene {
         // Calculate how much the world needs to scroll to bring goal to ball
         // The background will scroll much faster than the ball moves
         const distanceToGoal = goalRightEdge - ballTargetX - 80; // Goal needs to reach ball + 80px offset
-        const scrollSpeed = distanceToGoal / (shotDuration / 1000); // pixels per second
+        
+        // Calculate shot duration - minimum 4 seconds for good animation feel
+        const minShotDuration = 4000; // Minimum 4 seconds
+        const scrollSpeed = 500; // Fixed comfortable speed (pixels per second)
+        const calculatedDuration = (distanceToGoal / scrollSpeed) * 1000; // Convert to milliseconds
+        const shotDuration = Math.max(minShotDuration, calculatedDuration);
+        
+        // Adjust scroll speed to match the duration
+        const actualScrollSpeed = distanceToGoal / (shotDuration / 1000);
+        
+        console.log('Shooting setup:', {
+            goalRightEdge,
+            ballTargetX,
+            distanceToGoal,
+            scrollSpeed: actualScrollSpeed,
+            shotDuration
+        });
         
         // Target ball size: same as player 4's ball (0.08 * 2.0 = 0.16)
         const targetBallScale = 0.16;
-        
-        console.log('Shot started:', {
-            ballStartX,
-            ballTargetX,
-            ballForwardMovement,
-            goalRightEdge,
-            distanceToGoal,
-            scrollSpeed,
-            shotDuration,
-            currentPlayerIndex: this.selectedPlayer,
-            startScale: shootingBall.scale,
-            targetScale: targetBallScale
-        });
         
         // Create multiplier text in center of screen
         const width = this.cameras.main.width;
@@ -1080,6 +1076,7 @@ class RunningScene extends Phaser.Scene {
         const scrollStartTime = this.time.now;
         let totalScrolled = 0;
         let goalHit = false;
+        let resultProcessed = false; // Prevent double-processing
         
         const scrollLoop = this.time.addEvent({
             delay: 16, // Every frame (~60fps)
@@ -1092,13 +1089,9 @@ class RunningScene extends Phaser.Scene {
                 const ballCurrentX = shootingBall.x;
                 
                 // When goal right edge reaches ball (with 100px buffer)
-                if (!goalHit && currentGoalRightEdge <= (ballCurrentX + 100)) {
+                if (!goalHit && !resultProcessed && currentGoalRightEdge <= (ballCurrentX + 100)) {
                     goalHit = true;
-                    console.log('Goal hit ball!', {
-                        currentGoalRightEdge,
-                        ballCurrentX,
-                        totalScrolled
-                    });
+                    resultProcessed = true; // Mark as processed
                     
                     // Ball hits the goal
                     shootingBall.setDepth(999); // Behind goal
@@ -1116,16 +1109,28 @@ class RunningScene extends Phaser.Scene {
                         const currentPrizeInPence = this.selectedStake * this.currentMultiplier;
                         const totalWinInPence = currentPrizeInPence * currentMultiplier;
                         
-                        const winText = this.add.text(width / 2, height / 2 + 100, 'TOTAL WIN', {
-                            fontSize: '60px',
+                        // Add winnings to wallet
+                        const currentBalance = this.registry.get('walletBalance') || 0;
+                        this.registry.set('walletBalance', currentBalance + totalWinInPence);
+                        
+                        const youWinText = this.add.text(width / 2, height / 2 - 80, 'YOU WIN!!!', {
+                            fontSize: '100px',
+                            fontStyle: 'bold',
+                            fill: '#00FF00',
+                            stroke: '#000000',
+                            strokeThickness: 10
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                        const winText = this.add.text(width / 2, height / 2 + 50, 'You won:', {
+                            fontSize: '45px',
                             fontStyle: 'bold',
                             fill: '#FFD700',
                             stroke: '#000000',
                             strokeThickness: 6
                         }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
                         
-                        const amountText = this.add.text(width / 2, height / 2 + 170, `£${(totalWinInPence / 100).toFixed(2)}`, {
-                            fontSize: '80px',
+                        const amountText = this.add.text(width / 2, height / 2 + 120, `£${(totalWinInPence / 100).toFixed(2)}`, {
+                            fontSize: '70px',
                             fontStyle: 'bold',
                             fill: '#00FF00',
                             stroke: '#000000',
@@ -1187,11 +1192,9 @@ class RunningScene extends Phaser.Scene {
                                 ease: 'Bounce.easeOut',
                                 onComplete: () => {
                                     // After bounce, wait 5 seconds then show result
-                                    console.log('Ball bounced, waiting 5 seconds...', 'willScore:', willScore);
                                     this.time.delayedCall(5000, () => {
-                                        console.log('Showing outcome scene');
                                         this.isShooting = false;
-                                        this.handleShootingResult(willScore);
+                                        this.handleShootingResult(willScore, currentMultiplier);
                                     });
                                 }
                             });
@@ -1201,8 +1204,8 @@ class RunningScene extends Phaser.Scene {
                 }
                 
                 // Safety: if we've been scrolling too long, stop
-                if (elapsed >= shotDuration + 3000) {
-                    console.log('Shot timeout - stopping scroll', 'willScore:', willScore);
+                if (!resultProcessed && elapsed >= shotDuration + 3000) {
+                    resultProcessed = true; // Mark as processed
                     scrollLoop.remove();
                     
                     // Stop multiplier timer
@@ -1215,16 +1218,28 @@ class RunningScene extends Phaser.Scene {
                         const currentPrizeInPence = this.selectedStake * this.currentMultiplier;
                         const totalWinInPence = currentPrizeInPence * currentMultiplier;
                         
-                        const winText = this.add.text(width / 2, height / 2 + 100, 'TOTAL WIN', {
-                            fontSize: '60px',
+                        // Add winnings to wallet
+                        const currentBalance = this.registry.get('walletBalance') || 0;
+                        this.registry.set('walletBalance', currentBalance + totalWinInPence);
+                        
+                        const youWinText = this.add.text(width / 2, height / 2 - 80, 'YOU WIN!!!', {
+                            fontSize: '100px',
+                            fontStyle: 'bold',
+                            fill: '#00FF00',
+                            stroke: '#000000',
+                            strokeThickness: 10
+                        }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
+                        
+                        const winText = this.add.text(width / 2, height / 2 + 50, 'You won:', {
+                            fontSize: '45px',
                             fontStyle: 'bold',
                             fill: '#FFD700',
                             stroke: '#000000',
                             strokeThickness: 6
                         }).setOrigin(0.5).setScrollFactor(0).setDepth(10000);
                         
-                        const amountText = this.add.text(width / 2, height / 2 + 170, `£${(totalWinInPence / 100).toFixed(2)}`, {
-                            fontSize: '80px',
+                        const amountText = this.add.text(width / 2, height / 2 + 120, `£${(totalWinInPence / 100).toFixed(2)}`, {
+                            fontSize: '70px',
                             fontStyle: 'bold',
                             fill: '#00FF00',
                             stroke: '#000000',
@@ -1273,13 +1288,13 @@ class RunningScene extends Phaser.Scene {
                     // Wait 5 seconds then show result
                     this.time.delayedCall(5000, () => {
                         this.isShooting = false;
-                        this.handleShootingResult(willScore);
+                        this.handleShootingResult(willScore, currentMultiplier);
                     });
                     return;
                 }
                 
                 const frameTime = 16 / 1000;
-                const scrollAmount = scrollSpeed * frameTime;
+                const scrollAmount = actualScrollSpeed * frameTime;
                 totalScrolled += scrollAmount;
                 
                 // Move background, goal, players, and opponents LEFT (world scrolls right)
@@ -1307,20 +1322,33 @@ class RunningScene extends Phaser.Scene {
         });
     }
     
-    handleShootingResult(scored) {
+    handleShootingResult(scored, shootingMultiplier = 10.0) {
         if (scored) {
             // Goal scored - show success and proceed
-            const finalMultiplier = this.registry.get('currentMultiplier') || 1.0;
-            const selectedStake = this.registry.get('selectedStake') || 100;
-            const finalValue = (selectedStake / 100) * finalMultiplier;
+            const currentPrizeInPence = this.selectedStake * this.currentMultiplier;
+            const totalWinInPence = currentPrizeInPence * shootingMultiplier;
             
-            this.registry.set('finalMultiplier', finalMultiplier);
-            this.registry.set('finalValue', finalValue);
+            this.registry.set('won', true);
+            this.registry.set('crashMultiplier', this.currentMultiplier); // Store crash game multiplier
+            this.registry.set('shootingMultiplier', shootingMultiplier); // Store shooting multiplier
+            this.registry.set('crashWinAmount', currentPrizeInPence / 100); // Crash game winnings in pounds
+            this.registry.set('finalMultiplier', this.currentMultiplier * shootingMultiplier);
+            this.registry.set('finalValue', totalWinInPence / 100); // Convert to pounds
             this.registry.set('outcomeType', 'goal');
+            
+            console.log('Setting registry values:', {
+                won: true,
+                crashMultiplier: this.currentMultiplier,
+                shootingMultiplier: shootingMultiplier,
+                crashWinAmount: currentPrizeInPence / 100,
+                finalMultiplier: this.currentMultiplier * shootingMultiplier,
+                finalValue: totalWinInPence / 100
+            });
             
             this.scene.start('OutcomeScene');
         } else {
             // Miss - player loses
+            this.registry.set('won', false);
             this.registry.set('finalMultiplier', 0);
             this.registry.set('finalValue', 0);
             this.registry.set('outcomeType', 'miss');

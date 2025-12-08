@@ -14,12 +14,21 @@ class OutcomeScene extends Phaser.Scene {
         this.finalValue = this.registry.get('finalValue') || 0;
         this.finalMultiplier = this.registry.get('finalMultiplier') || 0;
         
-        // Update wallet if won
-        if (this.won) {
-            const currentBalance = this.registry.get('walletBalance');
-            const winnings = Math.round(this.finalValue * 100); // Convert to pence
-            this.registry.set('walletBalance', currentBalance + winnings);
-        }
+        // Get breakdown data for display
+        this.crashMultiplier = this.registry.get('crashMultiplier') || 0;
+        this.shootingMultiplier = this.registry.get('shootingMultiplier') || 0;
+        this.crashWinAmount = this.registry.get('crashWinAmount') || 0;
+        
+        console.log('OutcomeScene values:', {
+            won: this.won,
+            finalValue: this.finalValue,
+            crashMultiplier: this.crashMultiplier,
+            shootingMultiplier: this.shootingMultiplier,
+            crashWinAmount: this.crashWinAmount
+        });
+        
+        // Note: Wallet is already updated in the scene where the win occurred
+        // (RunningScene or PenaltyScene), so we don't add winnings here
         
         // Background
         const bgColor = this.won ? 0x1b5e20 : 0x8b0000;
@@ -62,28 +71,57 @@ class OutcomeScene extends Phaser.Scene {
         
         // Show results
         if (this.won) {
-            // Multiplier
-            this.add.text(panelX, panelY - 50, `Total Multiplier: ${this.finalMultiplier.toFixed(2)}x`, {
-                fontSize: '28px',
-                fontStyle: 'bold',
-                fill: '#ffff00'
-            }).setOrigin(0.5);
+            let currentY = panelY - 70;
             
-            // Winnings
-            this.add.text(panelX, panelY + 10, `WINNINGS`, {
-                fontSize: '24px',
+            // Show crash game amount
+            this.add.text(panelX, currentY, 'Crash Game:', {
+                fontSize: '22px',
                 fill: '#ffffff'
             }).setOrigin(0.5);
             
-            const winAmount = this.add.text(panelX, panelY + 60, `£${this.finalValue.toFixed(2)}`, {
-                fontSize: '64px',
+            this.add.text(panelX, currentY + 30, `£${this.crashWinAmount.toFixed(2)}`, {
+                fontSize: '32px',
+                fontStyle: 'bold',
+                fill: '#FFD700',
+                stroke: '#000000',
+                strokeThickness: 4
+            }).setOrigin(0.5);
+            
+            currentY += 70;
+            
+            // Show multiplier (shooting or penalty)
+            const multiplierLabel = this.shootingMultiplier === 10.0 ? 'Shooting Multiplier:' : 'Penalty Multiplier:';
+            this.add.text(panelX, currentY, multiplierLabel, {
+                fontSize: '22px',
+                fill: '#ffffff'
+            }).setOrigin(0.5);
+            
+            this.add.text(panelX, currentY + 30, `x${this.shootingMultiplier.toFixed(1)}`, {
+                fontSize: '32px',
+                fontStyle: 'bold',
+                fill: '#00BFFF',
+                stroke: '#000000',
+                strokeThickness: 4
+            }).setOrigin(0.5);
+            
+            currentY += 70;
+            
+            // Show total winnings
+            this.add.text(panelX, currentY, 'TOTAL WIN:', {
+                fontSize: '26px',
+                fontStyle: 'bold',
+                fill: '#ffffff'
+            }).setOrigin(0.5);
+            
+            const winAmount = this.add.text(panelX, currentY + 40, `£${this.finalValue.toFixed(2)}`, {
+                fontSize: '48px',
                 fontStyle: 'bold',
                 fill: '#00ff00',
                 stroke: '#000000',
                 strokeThickness: 6
             }).setOrigin(0.5);
             
-            // Animate winnings
+            // Animate total winnings
             winAmount.setScale(0);
             this.tweens.add({
                 targets: winAmount,
@@ -104,8 +142,8 @@ class OutcomeScene extends Phaser.Scene {
             }).setOrigin(0.5);
         }
         
-        // Buttons
-        this.createButton(panelX, panelY + 140, 'PLAY AGAIN', () => this.playAgain(), 0x4CAF50);
+        // Buttons - position further down to avoid overlap
+        this.createButton(panelX, panelY + 190, 'PLAY AGAIN', () => this.playAgain(), 0x4CAF50);
     }
     
     createButton(x, y, text, callback, color) {

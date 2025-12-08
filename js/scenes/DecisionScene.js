@@ -170,47 +170,30 @@ class DecisionScene extends Phaser.Scene {
     }
     
     passTo(playerIndex) {
-        console.log('╔═══════════════════════════════════════╗');
-        console.log('║  PASS BUTTON CLICKED - START         ║');
-        console.log('╚═══════════════════════════════════════╝');
-        console.log('Target player index:', playerIndex);
-        console.log('Current selected player:', this.registry.get('selectedPlayer'));
-        
         // Get running scene reference FIRST (before stopping anything)
         const runningScene = this.scene.get('RunningScene');
-        console.log('Running scene found:', !!runningScene);
-        console.log('Running scene paused?', runningScene.scene.isPaused());
         
         // Update registry
         this.registry.set('selectedPlayer', playerIndex);
         
         // Resume running scene FIRST
-        console.log('Resuming running scene...');
         this.scene.resume('RunningScene');
         
         // Give scene one frame to resume properly
         setTimeout(() => {
-            console.log('Calling handlePassAnimation after timeout...');
             runningScene.handlePassAnimation(playerIndex);
         }, 100);
         
         // Stop decision scene LAST
-        console.log('Stopping decision scene...');
         this.scene.stop();
     }
     
     shoot() {
-        console.log('DecisionScene shoot() called');
-        
         // Get the running scene
         const runningScene = this.scene.get('RunningScene');
         
-        console.log('RunningScene paused?', this.scene.isPaused('RunningScene'));
-        
         // Resume the running scene first (it was paused when decision started)
         this.scene.resume('RunningScene');
-        
-        console.log('Resumed RunningScene, now calling handleShooting');
         
         // Stop decision scene
         this.scene.stop();
@@ -220,7 +203,6 @@ class DecisionScene extends Phaser.Scene {
     }
     
     shootPenalty() {
-        console.log('Penalty shootout initiated');
         
         // Store current prize in registry for PenaltyScene
         const currentPrize = this.selectedStake * this.currentMultiplier;
