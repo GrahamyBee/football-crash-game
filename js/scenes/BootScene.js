@@ -34,6 +34,16 @@ class BootScene extends Phaser.Scene {
         this.load.image('opposition_tackle', 'Assets/opposition_tackle.png');
         this.load.image('player_dive', 'Assets/player_dive.png');
         
+        // Load penalty shootout assets
+        this.load.image('penalty_background', 'Assets/penalty_background.png');
+        this.load.image('goalkeeper', 'Assets/goalkeeper.png');
+        this.load.image('left_dive_high', 'Assets/left_dive_high.png');
+        this.load.image('left_dive_low', 'Assets/left_dive_low.png');
+        this.load.image('right_dive_high', 'Assets/right_dive_high.png');
+        this.load.image('right_dive_low', 'Assets/right_dive_low.png');
+        this.load.image('left_goal', 'Assets/left_goal.png');
+        this.load.image('right_goal', 'Assets/right_goal.png');
+        
         // Load all four footballer sprite sheets for animations during gameplay
         // 6 frames at 256x256 each = total image should be 1536x256
         this.load.spritesheet('footballer1', 'Assets/FOOTBALLER_NEW.png', {

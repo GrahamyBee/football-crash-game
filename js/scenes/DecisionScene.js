@@ -12,6 +12,14 @@ class DecisionScene extends Phaser.Scene {
         this.selectedStake = this.registry.get('selectedStake');
         this.currentMultiplier = this.registry.get('currentMultiplier');
         this.activePlayers = this.registry.get('activePlayers');
+        this.currentDecisionIndex = this.registry.get('currentDecisionIndex') || 0;
+        
+        console.log('DecisionScene - currentDecisionIndex:', this.currentDecisionIndex);
+        
+        // Check if this is the 4th decision (index 3)
+        this.isFinalDecision = (this.currentDecisionIndex === 3);
+        
+        console.log('DecisionScene - isFinalDecision:', this.isFinalDecision);
         
         // Semi-transparent overlay
         this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0);
@@ -26,10 +34,11 @@ class DecisionScene extends Phaser.Scene {
         panel.setStrokeStyle(4, 0x4CAF50);
         
         // Title
-        this.add.text(panelX, panelY - 160, 'DECISION TIME!', {
+        const titleText = this.isFinalDecision ? 'FINAL DECISION!' : 'DECISION TIME!';
+        this.add.text(panelX, panelY - 160, titleText, {
             fontSize: '32px',
             fontStyle: 'bold',
-            fill: '#ffff00'
+            fill: this.isFinalDecision ? '#FF0000' : '#ffff00'
         }).setOrigin(0.5);
         
         // Cash value
@@ -43,23 +52,36 @@ class DecisionScene extends Phaser.Scene {
         const buttonY = panelY - 40;
         const buttonSpacing = 80;
         
-        // Continue button
-        this.createButton(panelX, buttonY, 'CONTINUE', () => this.continue(), 0x2196F3);
-        
-        // Pass button (if other players are active)
-        const otherActivePlayers = this.activePlayers.filter((active, index) => 
-            active && index !== this.selectedPlayer
-        );
-        
-        if (otherActivePlayers.length > 0) {
-            this.createButton(panelX, buttonY + buttonSpacing, 'PASS', () => this.showPassOptions(), 0x9C27B0);
+        if (this.isFinalDecision) {
+            // 4th decision: Only Shoot and Cash Out
+            this.add.text(panelX, panelY - 50, 'Penalty Shootout Time!', {
+                fontSize: '20px',
+                fill: '#FFD700'
+            }).setOrigin(0.5);
+            
+            this.createButton(panelX, buttonY + buttonSpacing, 'SHOOT', () => this.shootPenalty(), 0xFF5722);
+            this.createButton(panelX, buttonY + buttonSpacing * 2, 'CASH OUT', () => this.cashOut(), 0x4CAF50);
+        } else {
+            // Normal decisions: All options
+            
+            // Continue button
+            this.createButton(panelX, buttonY, 'CONTINUE', () => this.continue(), 0x2196F3);
+            
+            // Pass button (if other players are active)
+            const otherActivePlayers = this.activePlayers.filter((active, index) => 
+                active && index !== this.selectedPlayer
+            );
+            
+            if (otherActivePlayers.length > 0) {
+                this.createButton(panelX, buttonY + buttonSpacing, 'PASS', () => this.showPassOptions(), 0x9C27B0);
+            }
+            
+            // Shoot button
+            this.createButton(panelX, buttonY + buttonSpacing * 2, 'SHOOT', () => this.shoot(), 0xFF5722);
+            
+            // Cash out button
+            this.createButton(panelX, buttonY + buttonSpacing * 3, 'CASH OUT', () => this.cashOut(), 0x4CAF50);
         }
-        
-        // Shoot button
-        this.createButton(panelX, buttonY + buttonSpacing * 2, 'SHOOT', () => this.shoot(), 0xFF5722);
-        
-        // Cash out button
-        this.createButton(panelX, buttonY + buttonSpacing * 3, 'CASH OUT', () => this.cashOut(), 0x4CAF50);
     }
     
     formatCashValue(multiplier) {
@@ -195,6 +217,21 @@ class DecisionScene extends Phaser.Scene {
         
         // Trigger shooting animation in RunningScene
         runningScene.handleShooting();
+    }
+    
+    shootPenalty() {
+        console.log('Penalty shootout initiated');
+        
+        // Store current prize in registry for PenaltyScene
+        const currentPrize = this.selectedStake * this.currentMultiplier;
+        this.registry.set('currentPrize', currentPrize);
+        
+        // Stop decision and running scenes
+        this.scene.stop();
+        this.scene.stop('RunningScene');
+        
+        // Launch penalty scene
+        this.scene.start('PenaltyScene');
     }
     
     cashOut() {

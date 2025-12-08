@@ -17,6 +17,7 @@ const config = {
         RunningScene,
         DecisionScene,
         ShootingScene,
+        PenaltyScene,
         OutcomeScene
     ],
     physics: {
