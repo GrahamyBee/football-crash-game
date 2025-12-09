@@ -821,23 +821,27 @@ class RunningScene extends Phaser.Scene {
             // Stop the game immediately
             this.isRunning = false;
             
-            // Check for bonus round (1 in 5 chance or forced)
+            // Check for bonus round
             const forceBonus = this.registry.get('forceBonus') || false;
+            
+            // If Force Bonus is enabled, ALWAYS trigger bonus (100% chance)
+            // Otherwise, 1 in 5 chance (20%)
             const randomValue = Math.random();
-            const bonusTriggered = forceBonus || (randomValue < 0.2); // 1 in 5 chance (20%)
+            const bonusTriggered = forceBonus || (randomValue < 0.2);
             
             console.log('Player with ball tackled!', {
                 playerIndex: playerIndex,
                 forceBonus: forceBonus,
                 randomValue: randomValue,
                 bonusTriggered: bonusTriggered,
-                registryForceBonus: this.registry.get('forceBonus')
+                allPlayersTackled: this.players.filter(p => p.active).length === 0
             });
             
             if (bonusTriggered) {
                 // Mark this player as the bonus round player (flag = 99)
+                // This means they will respawn after the bonus round
                 this.playerDestroyedFlags[playerIndex] = 99;
-                console.log(`Player ${playerIndex} flagged as bonus player (99)`);
+                console.log(`Player ${playerIndex} flagged as bonus player (99) - will respawn after bonus`);
                 
                 // Show referee and trigger bonus round
                 console.log('Bonus round will trigger in 1.5 seconds...');
