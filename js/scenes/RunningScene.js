@@ -1557,8 +1557,31 @@ class RunningScene extends Phaser.Scene {
                 spriteVisible: spriteExists ? player.sprite.visible : 'destroyed'
             });
             
-            // Only restore sprite properties if sprite still exists
-            if (spriteExists) {
+            // Recreate sprite if it was destroyed (for active players returning from bonus round)
+            if (!spriteExists && savedState.active) {
+                console.log(`Player ${index} sprite was destroyed but player is active - regenerating sprite`);
+                
+                // Recreate the player sprite
+                const spriteKey = `footballer${index + 1}`;
+                const animKey = `run${index + 1}`;
+                
+                if (this.textures.exists(spriteKey) && this.anims.exists(animKey)) {
+                    const newSprite = this.add.sprite(savedState.x, savedState.y, spriteKey);
+                    newSprite.setScale(0.5 * savedState.perspectiveScale);
+                    newSprite.play(animKey);
+                    newSprite.setDepth(1000);
+                    player.sprite = newSprite;
+                    console.log(`Regenerated animated sprite for player ${index}`);
+                } else {
+                    // Fallback to circle
+                    const newSprite = this.add.circle(savedState.x, savedState.y, 40 * savedState.perspectiveScale, GameConfig.PLAYER_COLORS[index]);
+                    newSprite.setStrokeStyle(2, 0xffffff);
+                    newSprite.setDepth(1000);
+                    player.sprite = newSprite;
+                    console.log(`Regenerated circle sprite for player ${index}`);
+                }
+            } else if (spriteExists) {
+                // Restore existing sprite properties
                 player.sprite.setPosition(savedState.x, savedState.y);
                 player.sprite.setVisible(true); // Ensure player is visible
                 player.sprite.setAlpha(1); // Ensure full opacity
@@ -1574,34 +1597,75 @@ class RunningScene extends Phaser.Scene {
                     player.sprite.anims.resume();
                 }
             } else {
-                console.log(`Player ${index} sprite was destroyed (crashed player), skipping sprite restoration`);
+                console.log(`Player ${index} sprite was destroyed and player is inactive - skipping sprite restoration`);
             }
             
             player.active = savedState.active;
             player.hasBall = savedState.hasBall;
             
-            // Restore ball if player had it
-            if (savedState.hasBall && player.ball) {
+            // Restore or recreate ball if player had it
+            if (savedState.hasBall) {
                 const offsetX = 47 * savedState.perspectiveScale;
                 const offsetY = 40 * savedState.perspectiveScale;
-                player.ball.setPosition(savedState.x + offsetX, savedState.y + offsetY);
-                player.ball.setVisible(true); // Ensure ball is visible
-                player.ball.setAlpha(1); // Ensure full opacity
-                player.ball.setActive(true); // Ensure ball is active
-                player.ball.setDepth(1002); // Ensure ball is on top
                 
-                // Resume ball rotation if tween exists
-                if (player.ballTween) {
-                    player.ballTween.resume();
+                if (player.ball && player.ball.active !== false) {
+                    // Ball still exists, restore its position
+                    player.ball.setPosition(savedState.x + offsetX, savedState.y + offsetY);
+                    player.ball.setVisible(true);
+                    player.ball.setAlpha(1);
+                    player.ball.setActive(true);
+                    player.ball.setDepth(1002);
+                    
+                    if (player.ballTween) {
+                        player.ballTween.resume();
+                    }
+                    
+                    console.log(`Ball restored for player ${index}`);
+                } else {
+                    // Ball was destroyed, recreate it
+                    console.log(`Ball was destroyed for player ${index}, recreating...`);
+                    
+                    const ball = this.add.image(savedState.x + offsetX, savedState.y + offsetY, 'football');
+                    ball.setScale(0.08 * savedState.perspectiveScale);
+                    ball.setDepth(1002);
+                    
+                    player.ball = ball;
+                    player.sprite.ball = ball;
+                    
+                    // Recreate rotation tween
+                    const ballTween = this.tweens.add({
+                        targets: ball,
+                        angle: 360,
+                        duration: 1000,
+                        repeat: -1,
+                        ease: 'Linear'
+                    });
+                    
+                    player.ballTween = ballTween;
+                    
+                    console.log(`Ball recreated for player ${index}`);
                 }
-                
-                console.log(`Ball restored for player ${index} at:`, { x: player.ball.x, y: player.ball.y, visible: player.ball.visible });
             }
             
-            // Show indicator for active player
-            if (player.indicator) {
-                player.indicator.setVisible(player.active);
-                player.indicator.setActive(true);
+            // Restore or recreate indicator for active player
+            if (savedState.hasBall) {
+                if (player.indicator && player.indicator.active !== false) {
+                    player.indicator.setVisible(player.active);
+                    player.indicator.setActive(true);
+                } else if (player.active) {
+                    // Recreate indicator if it was destroyed
+                    console.log(`Indicator was destroyed for player ${index}, recreating...`);
+                    const indicatorOffsetY = 80 * savedState.perspectiveScale;
+                    const indicatorFontSize = Math.floor(20 * savedState.perspectiveScale);
+                    const indicator = this.add.text(savedState.x, savedState.y - indicatorOffsetY, 'YOU', {
+                        fontSize: `${indicatorFontSize}px`,
+                        fontStyle: 'bold',
+                        fill: '#ffff00'
+                    }).setOrigin(0.5);
+                    
+                    player.indicator = indicator;
+                    player.sprite.indicator = indicator;
+                }
             }
         });
         

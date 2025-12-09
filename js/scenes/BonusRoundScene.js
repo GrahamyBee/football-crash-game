@@ -191,7 +191,7 @@ class BonusRoundScene extends Phaser.Scene {
                     fill: '#FFD700',
                     stroke: '#000000',
                     strokeThickness: 5
-                }).setOrigin(0.5).setDepth(15);
+                }).setOrigin(0.5).setDepth(150);
                 
                 console.log('BonusRoundScene - Goal scored:', {
                     cashAmount: cashAmount,
@@ -262,7 +262,7 @@ class BonusRoundScene extends Phaser.Scene {
             fill: '#FFD700',
             stroke: '#000000',
             strokeThickness: 10
-        }).setOrigin(0.5).setDepth(20);
+        }).setOrigin(0.5).setDepth(150);
         
         // You won text
         const winText = this.add.text(width / 2, height / 2, 'You won:', {
@@ -271,7 +271,7 @@ class BonusRoundScene extends Phaser.Scene {
             fill: '#FFFFFF',
             stroke: '#000000',
             strokeThickness: 6
-        }).setOrigin(0.5).setDepth(20);
+        }).setOrigin(0.5).setDepth(150);
         
         const amountText = this.add.text(width / 2, height / 2 + 70, `£${(cashAmount / 100).toFixed(2)}`, {
             fontSize: '70px',
@@ -279,7 +279,7 @@ class BonusRoundScene extends Phaser.Scene {
             fill: '#FFD700',
             stroke: '#000000',
             strokeThickness: 8
-        }).setOrigin(0.5).setDepth(20);
+        }).setOrigin(0.5).setDepth(150);
         
         // Store bonus win amount for potential display
         this.registry.set('bonusWinAmount', cashAmount / 100);
@@ -301,7 +301,7 @@ class BonusRoundScene extends Phaser.Scene {
             fill: '#FF0000',
             stroke: '#000000',
             strokeThickness: 10
-        }).setOrigin(0.5).setDepth(20);
+        }).setOrigin(0.5).setDepth(150);
         
         // No bonus text
         const noBonusText = this.add.text(width / 2, height / 2, 'No bonus this time!', {
@@ -310,7 +310,7 @@ class BonusRoundScene extends Phaser.Scene {
             fill: '#FFFFFF',
             stroke: '#000000',
             strokeThickness: 6
-        }).setOrigin(0.5).setDepth(20);
+        }).setOrigin(0.5).setDepth(150);
         
         console.log('BonusRoundScene - Shot saved, no bonus won');
         
