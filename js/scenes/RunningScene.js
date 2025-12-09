@@ -1568,17 +1568,25 @@ class RunningScene extends Phaser.Scene {
                 if (this.textures.exists(spriteKey) && this.anims.exists(animKey)) {
                     const newSprite = this.add.sprite(savedState.x, savedState.y, spriteKey);
                     newSprite.setScale(0.5 * savedState.perspectiveScale);
+                    newSprite.setDepth(10000); // Very high depth to ensure visibility
+                    newSprite.setVisible(true);
+                    newSprite.setAlpha(1);
+                    newSprite.setActive(true);
                     newSprite.play(animKey);
-                    newSprite.setDepth(1000);
                     player.sprite = newSprite;
-                    console.log(`Regenerated animated sprite for player ${index}`);
+                    this.children.bringToTop(newSprite); // Bring to absolute front
+                    console.log(`Regenerated animated sprite for player ${index} at position:`, { x: savedState.x, y: savedState.y, visible: newSprite.visible, active: newSprite.active, depth: newSprite.depth });
                 } else {
                     // Fallback to circle
                     const newSprite = this.add.circle(savedState.x, savedState.y, 40 * savedState.perspectiveScale, GameConfig.PLAYER_COLORS[index]);
                     newSprite.setStrokeStyle(2, 0xffffff);
-                    newSprite.setDepth(1000);
+                    newSprite.setDepth(10000); // Very high depth to ensure visibility
+                    newSprite.setVisible(true);
+                    newSprite.setAlpha(1);
+                    newSprite.setActive(true);
                     player.sprite = newSprite;
-                    console.log(`Regenerated circle sprite for player ${index}`);
+                    this.children.bringToTop(newSprite); // Bring to absolute front
+                    console.log(`Regenerated circle sprite for player ${index} at position:`, { x: savedState.x, y: savedState.y, visible: newSprite.visible, active: newSprite.active, depth: newSprite.depth });
                 }
             } else if (spriteExists) {
                 // Restore existing sprite properties
@@ -1627,10 +1635,15 @@ class RunningScene extends Phaser.Scene {
                     
                     const ball = this.add.image(savedState.x + offsetX, savedState.y + offsetY, 'football');
                     ball.setScale(0.08 * savedState.perspectiveScale);
-                    ball.setDepth(1002);
+                    ball.setDepth(10002); // Very high depth to ensure visibility
+                    ball.setVisible(true);
+                    ball.setAlpha(1);
+                    ball.setActive(true);
                     
                     player.ball = ball;
                     player.sprite.ball = ball;
+                    
+                    this.children.bringToTop(ball); // Bring to absolute front
                     
                     // Recreate rotation tween
                     const ballTween = this.tweens.add({
@@ -1643,7 +1656,7 @@ class RunningScene extends Phaser.Scene {
                     
                     player.ballTween = ballTween;
                     
-                    console.log(`Ball recreated for player ${index}`);
+                    console.log(`Ball recreated for player ${index} at:`, { x: ball.x, y: ball.y, visible: ball.visible, depth: ball.depth });
                 }
             }
             
@@ -1700,9 +1713,32 @@ class RunningScene extends Phaser.Scene {
             this.background.tilePositionX = state.backgroundX;
         }
         this.cameraScrollX = state.cameraScrollX || 0;
+        
+        // Restore camera scroll position
+        this.cameras.main.scrollX = this.cameraScrollX;
+        console.log('Camera scroll restored to:', this.cameraScrollX);
+        
         this.currentMultiplier = state.currentMultiplier;
         this.waveOpponentsSpawned = state.waveOpponentsSpawned;
         this.currentWaveCount = state.currentWaveCount;
+        
+        // Force all player sprites to front and ensure they're in the display list
+        this.players.forEach((player, index) => {
+            if (player.sprite && player.sprite.active !== false) {
+                player.sprite.setDepth(10000); // Very high depth
+                this.children.bringToTop(player.sprite);
+                console.log(`Brought player ${index} sprite to front, depth: ${player.sprite.depth}, visible: ${player.sprite.visible}`);
+            }
+            if (player.ball && player.ball.active !== false) {
+                player.ball.setDepth(10002);
+                this.children.bringToTop(player.ball);
+                console.log(`Brought player ${index} ball to front`);
+            }
+            if (player.indicator && player.indicator.active !== false) {
+                player.indicator.setDepth(10001);
+                this.children.bringToTop(player.indicator);
+            }
+        });
         
         // Force scene to re-render by marking display list as dirty
         this.sys.displayList.depthSort();
