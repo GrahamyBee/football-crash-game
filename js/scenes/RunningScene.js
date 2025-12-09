@@ -1600,13 +1600,26 @@ class RunningScene extends Phaser.Scene {
             if (destroyedFlag === 1) {
                 console.log(`→ SKIPPING - player was destroyed (flag=1)`);
                 player.active = false;
+                
+                // Clean up any existing sprites
+                if (player.sprite && player.sprite.destroy) {
+                    player.sprite.destroy();
+                }
+                if (player.ball && player.ball.destroy) {
+                    player.ball.destroy();
+                }
+                if (player.indicator && player.indicator.destroy) {
+                    player.indicator.destroy();
+                }
+                
                 return;
             }
             
             // For flag 0 (active) or flag 99 (bonus player), restore/recreate
-            player.active = savedState.active;
+            // If flag 99, force player to be active
+            player.active = (destroyedFlag === 99) ? true : savedState.active;
             
-            const spriteExists = player.sprite && player.sprite.active !== false;
+            const spriteExists = player.sprite && player.sprite.active !== false && !player.sprite.scene;
             const needsRecreation = !spriteExists || destroyedFlag === 99;
             
             if (needsRecreation) {
@@ -1729,7 +1742,18 @@ class RunningScene extends Phaser.Scene {
         this.totalScrolled = state.totalScrolled;
         if (this.background) {
             this.background.tilePositionX = state.backgroundX;
+            this.background.setVisible(true);
         }
+        
+        // Restore background tiles if they exist
+        if (this.backgroundTiles && this.backgroundTiles.length > 0) {
+            this.backgroundTiles.forEach(tile => {
+                if (tile && tile.setVisible) {
+                    tile.setVisible(true);
+                }
+            });
+        }
+        
         this.cameraScrollX = state.cameraScrollX || 0;
         
         // Restore camera scroll position
@@ -1743,6 +1767,26 @@ class RunningScene extends Phaser.Scene {
         // Force display list depth sort to ensure proper rendering
         console.log('\n=== FINALIZING RESTORATION ===');
         this.sys.displayList.depthSort();
+        
+        // Ensure UI elements are visible and properly set
+        if (this.cashValueText) {
+            this.cashValueText.setVisible(true);
+            this.cashValueText.setAlpha(1);
+            this.cashValueText.setText(this.formatCashValue(this.currentMultiplier));
+        }
+        
+        if (this.background) {
+            this.background.setVisible(true);
+            this.background.setAlpha(1);
+        }
+        
+        // Make sure pitch/lanes are visible
+        if (this.pitchBg) {
+            this.pitchBg.setVisible(true);
+        }
+        
+        console.log('UI elements restored');
+        
         this.cameras.main.flash(1, 0, 0, 0, true); // Invisible flash to force render refresh
         
         // Clear saved state and bonus round player index
@@ -1754,7 +1798,13 @@ class RunningScene extends Phaser.Scene {
             totalScrolled: this.totalScrolled,
             cameraScrollX: this.cameraScrollX,
             activePlayers: this.players.filter(p => p.active).length,
-            playerPositions: this.players.map((p, i) => ({ index: i, x: p.sprite.x, y: p.sprite.y, visible: p.sprite.visible, hasBall: p.hasBall, ballVisible: p.ball ? p.ball.visible : 'no ball' }))
+            playerPositions: this.players.map((p, i) => {
+                if (p.sprite && p.sprite.x !== undefined) {
+                    return { index: i, x: p.sprite.x, y: p.sprite.y, visible: p.sprite.visible, hasBall: p.hasBall, ballVisible: p.ball ? p.ball.visible : 'no ball' };
+                } else {
+                    return { index: i, status: 'no sprite' };
+                }
+            })
         });
         
         // Show bonus addition animation before resuming
