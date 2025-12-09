@@ -71,7 +71,11 @@ class OutcomeScene extends Phaser.Scene {
         
         // Show results
         if (this.won) {
-            let currentY = panelY - 70;
+            // Get bonus win amount once for the entire display
+            const bonusWinAmount = this.registry.get('bonusWinAmount') || 0;
+            const totalWin = this.finalValue + bonusWinAmount;
+            
+            let currentY = panelY - 90;
             
             // Show crash game amount
             this.add.text(panelX, currentY, 'Crash Game:', {
@@ -88,6 +92,24 @@ class OutcomeScene extends Phaser.Scene {
             }).setOrigin(0.5);
             
             currentY += 70;
+            
+            // Show bonus round winnings if any
+            if (bonusWinAmount > 0) {
+                this.add.text(panelX, currentY, 'Bonus Round:', {
+                    fontSize: '22px',
+                    fill: '#ffffff'
+                }).setOrigin(0.5);
+                
+                this.add.text(panelX, currentY + 30, `£${bonusWinAmount.toFixed(2)}`, {
+                    fontSize: '32px',
+                    fontStyle: 'bold',
+                    fill: '#FF69B4',
+                    stroke: '#000000',
+                    strokeThickness: 4
+                }).setOrigin(0.5);
+                
+                currentY += 70;
+            }
             
             // Show multiplier (shooting or penalty)
             const multiplierLabel = this.shootingMultiplier === 10.0 ? 'Shooting Multiplier:' : 'Penalty Multiplier:';
@@ -106,14 +128,15 @@ class OutcomeScene extends Phaser.Scene {
             
             currentY += 70;
             
-            // Show total winnings
+            // Show total winnings (including bonus if any)
+            
             this.add.text(panelX, currentY, 'TOTAL WIN:', {
                 fontSize: '26px',
                 fontStyle: 'bold',
                 fill: '#ffffff'
             }).setOrigin(0.5);
             
-            const winAmount = this.add.text(panelX, currentY + 40, `£${this.finalValue.toFixed(2)}`, {
+            const winAmount = this.add.text(panelX, currentY + 40, `£${totalWin.toFixed(2)}`, {
                 fontSize: '48px',
                 fontStyle: 'bold',
                 fill: '#00ff00',
@@ -184,6 +207,7 @@ class OutcomeScene extends Phaser.Scene {
         this.registry.set('playerPositions', [0, 0, 0, 0]);
         this.registry.set('won', false);
         this.registry.set('cashedOut', false);
+        this.registry.set('bonusWinAmount', 0); // Reset bonus winnings
         
         // Return to selection
         this.scene.start('SelectionScene');
