@@ -334,10 +334,10 @@ class BonusRoundScene extends Phaser.Scene {
             console.error('RunningScene or restoreGameState not found!');
         }
         
-        // Stop this scene and resume the RunningScene
+        // Stop this scene and wake the RunningScene
         this.scene.stop('BonusRoundScene');
-        console.log('BonusRoundScene stopped, resuming RunningScene...');
-        this.scene.resume('RunningScene');
+        console.log('BonusRoundScene stopped, waking RunningScene...');
+        this.scene.wake('RunningScene');
     }
     
     createForceGoalButton() {

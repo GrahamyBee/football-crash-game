@@ -50,9 +50,9 @@ class RunningScene extends Phaser.Scene {
         this.allWaveOpponentsGone = false; // All wave opponents off screen or destroyed
         this.waveSpawnedThisSection = false; // Flag: has a wave been spawned for current decision section
         
-        // Set up scene resume handler for bonus round returns
-        this.events.on('resume', () => {
-            console.log('RunningScene resumed - restoring game state');
+        // Set up scene wake handler for bonus round returns (using wake instead of resume)
+        this.events.on('wake', () => {
+            console.log('RunningScene woken - restoring game state');
             if (this.savedGameState) {
                 this.restoreGameState();
             }
@@ -1861,8 +1861,8 @@ class RunningScene extends Phaser.Scene {
                     if (this.scene.isActive('BonusRoundScene')) {
                         this.scene.stop('BonusRoundScene');
                     }
-                    // Pause this scene and start bonus round (use start instead of launch for clean state)
-                    this.scene.pause('RunningScene');
+                    // Sleep this scene (keeps display list intact) and launch bonus round
+                    this.scene.sleep('RunningScene');
                     this.scene.launch('BonusRoundScene');
                 }
             });
