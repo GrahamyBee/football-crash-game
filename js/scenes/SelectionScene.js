@@ -55,9 +55,9 @@ class SelectionScene extends Phaser.Scene {
             height - 80
         );
         
-        // Confirm button (initially hidden)
+        // Confirm button (initially hidden) - centered
         this.confirmButton = this.createButton(
-            width / 2 - 100,
+            width / 2,
             height - 80,
             'CONFIRM',
             () => this.showConfirmation(),
@@ -518,16 +518,16 @@ class SelectionScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        // Create panel container
-        this.debugPanel = this.add.container(width - 200, height - 250);
+        // Create panel container - smaller panel with only one toggle
+        this.debugPanel = this.add.container(width - 200, height - 180);
         this.debugPanel.setDepth(2000);
         
-        // Panel background
-        const panelBg = this.add.rectangle(0, 0, 350, 220, 0x000000, 0.9);
+        // Panel background - smaller
+        const panelBg = this.add.rectangle(0, 0, 350, 120, 0x000000, 0.9);
         panelBg.setStrokeStyle(3, 0xFFD700);
         
         // Panel title
-        const title = this.add.text(0, -90, 'DEBUG PANEL', {
+        const title = this.add.text(0, -40, 'DEBUG PANEL', {
             fontSize: '24px',
             fontStyle: 'bold',
             fill: '#FFD700'
@@ -535,22 +535,12 @@ class SelectionScene extends Phaser.Scene {
         
         this.debugPanel.add([panelBg, title]);
         
-        // Get current debug states
-        const forceGoal = this.registry.get('forceGoal') || false;
+        // Get current debug state - only Force Bonus
         const forceBonus = this.registry.get('forceBonus') || false;
-        const testMode = this.registry.get('testMode') || false;
         
-        // Create toggle buttons
-        this.createDebugToggle('Force Goal', forceGoal, -50, (enabled) => {
-            this.registry.set('forceGoal', enabled);
-        });
-        
+        // Create single toggle button for Force Bonus
         this.createDebugToggle('Force Bonus', forceBonus, 0, (enabled) => {
             this.registry.set('forceBonus', enabled);
-        });
-        
-        this.createDebugToggle('Test Mode', testMode, 50, (enabled) => {
-            this.registry.set('testMode', enabled);
         });
         
         // Hide initially
