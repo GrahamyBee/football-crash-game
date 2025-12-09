@@ -1562,17 +1562,23 @@ class RunningScene extends Phaser.Scene {
             this.background.tilePositionX = state.backgroundX;
         }
         this.currentMultiplier = state.currentMultiplier;
-        this.isRunning = state.isRunning;
         this.waveOpponentsSpawned = state.waveOpponentsSpawned;
         this.currentWaveCount = state.currentWaveCount;
         
         // Clear saved state
         this.savedGameState = null;
         
-        console.log('Game state restored, resuming gameplay...');
+        console.log('Game state restored, resuming gameplay...', {
+            multiplier: this.currentMultiplier,
+            totalScrolled: this.totalScrolled,
+            activePlayers: this.players.filter(p => p.active).length
+        });
         
         // Resume running immediately (no decision scene)
         this.isRunning = true;
+        this.multiplierPaused = false; // Ensure multiplier continues
+        
+        console.log('isRunning set to true, game should continue');
     }
     
     showRefereeAndStartBonus() {
@@ -1652,8 +1658,13 @@ class RunningScene extends Phaser.Scene {
                 ease: 'Power2.easeIn',
                 onComplete: () => {
                     referee.destroy();
-                    // Pause this scene and launch bonus round
-                    this.scene.pause();
+                    console.log('Launching BonusRoundScene...');
+                    // Stop the BonusRoundScene if it's already running
+                    if (this.scene.isActive('BonusRoundScene')) {
+                        this.scene.stop('BonusRoundScene');
+                    }
+                    // Pause this scene and start bonus round (use start instead of launch for clean state)
+                    this.scene.pause('RunningScene');
                     this.scene.launch('BonusRoundScene');
                 }
             });
