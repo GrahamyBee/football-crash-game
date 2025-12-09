@@ -779,11 +779,14 @@ class RunningScene extends Phaser.Scene {
             
             // Check for bonus round (1 in 5 chance or forced)
             const forceBonus = this.registry.get('forceBonus') || false;
-            const bonusTriggered = forceBonus || (Math.random() < 0.2); // 1 in 5 chance (20%)
+            const randomValue = Math.random();
+            const bonusTriggered = forceBonus || (randomValue < 0.2); // 1 in 5 chance (20%)
             
             console.log('Player with ball tackled!', {
                 forceBonus: forceBonus,
-                bonusTriggered: bonusTriggered
+                randomValue: randomValue,
+                bonusTriggered: bonusTriggered,
+                registryForceBonus: this.registry.get('forceBonus')
             });
             
             if (bonusTriggered) {
