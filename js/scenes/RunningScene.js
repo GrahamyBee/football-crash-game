@@ -1545,28 +1545,36 @@ class RunningScene extends Phaser.Scene {
         // Restore player positions and states
         this.players.forEach((player, index) => {
             const savedState = state.players[index];
+            
+            // Check if sprite still exists (inactive players may have been destroyed)
+            const spriteExists = player.sprite && player.sprite.active !== false;
+            
             console.log(`Restoring player ${index}:`, {
                 savedPos: { x: savedState.x, y: savedState.y },
-                currentPos: { x: player.sprite.x, y: player.sprite.y },
                 active: savedState.active,
                 hasBall: savedState.hasBall,
-                spriteVisible: player.sprite.visible,
-                spriteExists: !!player.sprite
+                spriteExists: spriteExists,
+                spriteVisible: spriteExists ? player.sprite.visible : 'destroyed'
             });
             
-            player.sprite.setPosition(savedState.x, savedState.y);
-            player.sprite.setVisible(true); // Ensure player is visible
-            player.sprite.setAlpha(1); // Ensure full opacity
-            player.sprite.setActive(true); // Ensure sprite is active
-            
-            // Force depth to ensure visibility
-            if (player.sprite.depth === undefined) {
-                player.sprite.setDepth(1000);
-            }
-            
-            // Resume animation if it's a sprite with animation
-            if (player.sprite.anims && player.sprite.anims.currentAnim) {
-                player.sprite.anims.resume();
+            // Only restore sprite properties if sprite still exists
+            if (spriteExists) {
+                player.sprite.setPosition(savedState.x, savedState.y);
+                player.sprite.setVisible(true); // Ensure player is visible
+                player.sprite.setAlpha(1); // Ensure full opacity
+                player.sprite.setActive(true); // Ensure sprite is active
+                
+                // Force depth to ensure visibility
+                if (player.sprite.depth === undefined) {
+                    player.sprite.setDepth(1000);
+                }
+                
+                // Resume animation if it's a sprite with animation
+                if (player.sprite.anims && player.sprite.anims.currentAnim) {
+                    player.sprite.anims.resume();
+                }
+            } else {
+                console.log(`Player ${index} sprite was destroyed (crashed player), skipping sprite restoration`);
             }
             
             player.active = savedState.active;
