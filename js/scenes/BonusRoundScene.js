@@ -323,18 +323,7 @@ class BonusRoundScene extends Phaser.Scene {
     returnToGame() {
         console.log('BonusRoundScene - Returning to game...');
         
-        // Get the RunningScene and restore its state BEFORE stopping this scene
-        const runningScene = this.scene.get('RunningScene');
-        console.log('RunningScene found:', !!runningScene);
-        
-        if (runningScene && runningScene.restoreGameState) {
-            console.log('Calling restoreGameState...');
-            runningScene.restoreGameState();
-        } else {
-            console.error('RunningScene or restoreGameState not found!');
-        }
-        
-        // Stop this scene and wake the RunningScene
+        // Stop this scene and wake the RunningScene (restoration will happen in wake event handler)
         this.scene.stop('BonusRoundScene');
         console.log('BonusRoundScene stopped, waking RunningScene...');
         this.scene.wake('RunningScene');
