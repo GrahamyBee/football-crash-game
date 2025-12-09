@@ -65,6 +65,10 @@ class SelectionScene extends Phaser.Scene {
         );
         this.confirmButton.setVisible(false);
         
+        // Debug button (bottom right corner)
+        this.createDebugButton();
+        this.debugPanelVisible = false;
+        
         // Track selections
         this.selectedStake = null;
         this.selectedPlayer = null;
@@ -481,6 +485,112 @@ class SelectionScene extends Phaser.Scene {
         
         // Start running scene
         this.scene.start('RunningScene');
+    }
+    
+    createDebugButton() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        const button = this.add.container(width - 80, height - 50);
+        
+        const bg = this.add.rectangle(0, 0, 140, 50, 0x666666);
+        
+        const label = this.add.text(0, 0, 'DEBUG', {
+            fontSize: '20px',
+            fontStyle: 'bold',
+            fill: '#FFFFFF'
+        }).setOrigin(0.5);
+        
+        button.add([bg, label]);
+        
+        button.setSize(140, 50);
+        button.setInteractive({ useHandCursor: true });
+        button.setDepth(1000);
+        
+        button.on('pointerdown', () => {
+            this.toggleDebugPanel();
+        });
+        
+        this.debugButton = button;
+    }
+    
+    createDebugPanel() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        // Create panel container
+        this.debugPanel = this.add.container(width - 200, height - 250);
+        this.debugPanel.setDepth(2000);
+        
+        // Panel background
+        const panelBg = this.add.rectangle(0, 0, 350, 220, 0x000000, 0.9);
+        panelBg.setStrokeStyle(3, 0xFFD700);
+        
+        // Panel title
+        const title = this.add.text(0, -90, 'DEBUG PANEL', {
+            fontSize: '24px',
+            fontStyle: 'bold',
+            fill: '#FFD700'
+        }).setOrigin(0.5);
+        
+        this.debugPanel.add([panelBg, title]);
+        
+        // Get current debug states
+        const forceGoal = this.registry.get('forceGoal') || false;
+        const forceBonus = this.registry.get('forceBonus') || false;
+        const testMode = this.registry.get('testMode') || false;
+        
+        // Create toggle buttons
+        this.createDebugToggle('Force Goal', forceGoal, -50, (enabled) => {
+            this.registry.set('forceGoal', enabled);
+        });
+        
+        this.createDebugToggle('Force Bonus', forceBonus, 0, (enabled) => {
+            this.registry.set('forceBonus', enabled);
+        });
+        
+        this.createDebugToggle('Test Mode', testMode, 50, (enabled) => {
+            this.registry.set('testMode', enabled);
+        });
+        
+        // Hide initially
+        this.debugPanel.setVisible(false);
+    }
+    
+    createDebugToggle(labelText, initialState, yOffset, callback) {
+        const toggleContainer = this.add.container(0, yOffset);
+        
+        const bg = this.add.rectangle(0, 0, 300, 40, initialState ? 0x4CAF50 : 0x666666);
+        
+        const label = this.add.text(0, 0, `${labelText}: ${initialState ? 'ON' : 'OFF'}`, {
+            fontSize: '18px',
+            fontStyle: 'bold',
+            fill: '#FFFFFF'
+        }).setOrigin(0.5);
+        
+        toggleContainer.add([bg, label]);
+        toggleContainer.setSize(300, 40);
+        toggleContainer.setInteractive({ useHandCursor: true });
+        
+        let enabled = initialState;
+        
+        toggleContainer.on('pointerdown', () => {
+            enabled = !enabled;
+            bg.setFillStyle(enabled ? 0x4CAF50 : 0x666666);
+            label.setText(`${labelText}: ${enabled ? 'ON' : 'OFF'}`);
+            callback(enabled);
+        });
+        
+        this.debugPanel.add(toggleContainer);
+    }
+    
+    toggleDebugPanel() {
+        if (!this.debugPanel) {
+            this.createDebugPanel();
+        }
+        
+        this.debugPanelVisible = !this.debugPanelVisible;
+        this.debugPanel.setVisible(this.debugPanelVisible);
     }
     
     shutdown() {

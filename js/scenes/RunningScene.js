@@ -680,6 +680,11 @@ class RunningScene extends Phaser.Scene {
         
         player.active = false;
         
+        // Store reference to the opposition that caused the tackle (for bonus round)
+        if (opponent) {
+            this.lastTackler = opponent;
+        }
+        
         // Get perspective scale for this lane
         const perspectiveScale = player.perspectiveScale || 1.0;
         
@@ -764,15 +769,36 @@ class RunningScene extends Phaser.Scene {
             onComplete: () => crashText.destroy()
         });
         
-        // Check if the crashed player had the ball - if so, GAME OVER
+        // Check if the crashed player had the ball - if so, check for bonus round
         if (player.hasBall) {
             player.hasBall = false;
             player.ball = null;
             
-            // Game over - player with ball was tackled
-            this.time.delayedCall(1500, () => {
-                this.gameOver();
+            // Stop the game immediately
+            this.isRunning = false;
+            
+            // Check for bonus round (1 in 5 chance or forced)
+            const forceBonus = this.registry.get('forceBonus') || false;
+            const bonusTriggered = forceBonus || (Math.random() < 0.2); // 1 in 5 chance (20%)
+            
+            console.log('Player with ball tackled!', {
+                forceBonus: forceBonus,
+                bonusTriggered: bonusTriggered
             });
+            
+            if (bonusTriggered) {
+                // Show referee and trigger bonus round
+                console.log('Bonus round will trigger in 1.5 seconds...');
+                this.time.delayedCall(1500, () => {
+                    this.showRefereeAndStartBonus();
+                });
+            } else {
+                // Game over - player with ball was tackled
+                console.log('No bonus - game over in 1.5 seconds...');
+                this.time.delayedCall(1500, () => {
+                    this.gameOver();
+                });
+            }
         }
     }
     
@@ -1438,6 +1464,200 @@ class RunningScene extends Phaser.Scene {
         this.waveOpponentsSpawned = 0;
         this.currentWaveCount = 0;
         this.waveSpawnedThisSection = false; // Reset flag for new decision section
+    }
+    
+    saveGameState() {
+        console.log('Saving game state before bonus round...');
+        
+        // Save player positions and states
+        const playerStates = this.players.map(player => ({
+            x: player.sprite.x,
+            y: player.sprite.y,
+            active: player.active,
+            hasBall: player.hasBall,
+            perspectiveScale: player.perspectiveScale
+        }));
+        
+        // Save opposition positions and states (except the one that caused the tackle)
+        const oppositionStates = this.oppositionPlayers.map(opp => ({
+            x: opp.sprite ? opp.sprite.x : null,
+            y: opp.sprite ? opp.sprite.y : null,
+            active: opp.active,
+            type: opp.type,
+            removed: opp.removed || false
+        }));
+        
+        // Mark the tackler for removal (don't restore it)
+        if (this.lastTackler) {
+            const tacklerIndex = this.oppositionPlayers.indexOf(this.lastTackler);
+            if (tacklerIndex !== -1) {
+                oppositionStates[tacklerIndex].removed = true;
+            }
+        }
+        
+        // Save game progress
+        this.savedGameState = {
+            players: playerStates,
+            opposition: oppositionStates,
+            totalScrolled: this.totalScrolled || 0,
+            backgroundX: this.background ? this.background.tilePositionX : 0,
+            currentMultiplier: this.currentMultiplier,
+            isRunning: this.isRunning,
+            selectedPlayer: this.selectedPlayer,
+            waveOpponentsSpawned: this.waveOpponentsSpawned,
+            currentWaveCount: this.currentWaveCount
+        };
+        
+        console.log('Game state saved:', this.savedGameState);
+    }
+    
+    restoreGameState() {
+        if (!this.savedGameState) {
+            console.error('No saved game state to restore!');
+            return;
+        }
+        
+        console.log('Restoring game state after bonus round...');
+        
+        const state = this.savedGameState;
+        
+        // Restore player positions and states
+        this.players.forEach((player, index) => {
+            const savedState = state.players[index];
+            player.sprite.setPosition(savedState.x, savedState.y);
+            player.active = savedState.active;
+            player.hasBall = savedState.hasBall;
+            
+            // Restore ball if player had it
+            if (savedState.hasBall && player.ball) {
+                const offsetX = 47 * savedState.perspectiveScale;
+                const offsetY = 40 * savedState.perspectiveScale;
+                player.ball.setPosition(savedState.x + offsetX, savedState.y + offsetY);
+            }
+        });
+        
+        // Restore opposition (excluding removed tackler)
+        this.oppositionPlayers.forEach((opp, index) => {
+            const savedState = state.opposition[index];
+            
+            if (savedState.removed) {
+                // Remove the tackler that triggered bonus
+                if (opp.sprite) {
+                    opp.sprite.destroy();
+                    opp.sprite = null;
+                }
+                opp.active = false;
+            } else if (savedState.active && savedState.x !== null) {
+                // Restore active opposition
+                if (opp.sprite) {
+                    opp.sprite.setPosition(savedState.x, savedState.y);
+                }
+                opp.active = savedState.active;
+            }
+        });
+        
+        // Restore game progress
+        this.totalScrolled = state.totalScrolled;
+        if (this.background) {
+            this.background.tilePositionX = state.backgroundX;
+        }
+        this.currentMultiplier = state.currentMultiplier;
+        this.isRunning = state.isRunning;
+        this.waveOpponentsSpawned = state.waveOpponentsSpawned;
+        this.currentWaveCount = state.currentWaveCount;
+        
+        // Clear saved state
+        this.savedGameState = null;
+        
+        console.log('Game state restored, resuming gameplay...');
+        
+        // Resume running immediately (no decision scene)
+        this.isRunning = true;
+    }
+    
+    showRefereeAndStartBonus() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        console.log('Bonus round triggered! Showing referee...');
+        
+        // Store game state before bonus round
+        this.saveGameState();
+        
+        // Create referee image below screen (showing only 66% when slid up)
+        const refereeHeight = 400; // Approximate height of referee image at scale
+        const visiblePercent = 0.66;
+        const slideUpY = height - (refereeHeight * visiblePercent * 0.3); // 0.3 is the scale
+        
+        const referee = this.add.image(width / 2, height + 100, 'referee')
+            .setScale(0.3)
+            .setDepth(10000)
+            .setScrollFactor(0);
+        
+        // Add referee whistle text (initially hidden)
+        const whistleText = this.add.text(width / 2, slideUpY - 150, 'REFEREE WHISTLE!', {
+            fontSize: '48px',
+            fontStyle: 'bold',
+            fill: '#FFD700',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5).setDepth(10000).setScrollFactor(0).setAlpha(0);
+        
+        const bonusText = this.add.text(width / 2, slideUpY - 100, 'BONUS ROUND!', {
+            fontSize: '36px',
+            fontStyle: 'bold',
+            fill: '#FFFFFF',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(10000).setScrollFactor(0).setAlpha(0);
+        
+        // Store references for cleanup
+        this.refereeElements = { referee, whistleText, bonusText };
+        
+        // Slide referee up from bottom
+        this.tweens.add({
+            targets: referee,
+            y: slideUpY,
+            duration: 800,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                // Fade in text
+                this.tweens.add({
+                    targets: [whistleText, bonusText],
+                    alpha: 1,
+                    duration: 300,
+                    ease: 'Power2'
+                });
+            }
+        });
+        
+        // Wait then slide referee down and start bonus round
+        this.time.delayedCall(2000, () => {
+            // Fade out text
+            this.tweens.add({
+                targets: [whistleText, bonusText],
+                alpha: 0,
+                duration: 300,
+                onComplete: () => {
+                    whistleText.destroy();
+                    bonusText.destroy();
+                }
+            });
+            
+            // Slide referee back down
+            this.tweens.add({
+                targets: referee,
+                y: height + 100,
+                duration: 600,
+                ease: 'Power2.easeIn',
+                onComplete: () => {
+                    referee.destroy();
+                    // Pause this scene and launch bonus round
+                    this.scene.pause();
+                    this.scene.launch('BonusRoundScene');
+                }
+            });
+        });
     }
     
     gameOver() {

@@ -44,6 +44,9 @@ class BootScene extends Phaser.Scene {
         this.load.image('left_goal', 'Assets/left_goal.png');
         this.load.image('right_goal', 'Assets/right_goal.png');
         
+        // Load bonus round assets
+        this.load.image('referee', 'Assets/referee.png');
+        
         // Load all four footballer sprite sheets for animations during gameplay
         // 6 frames at 256x256 each = total image should be 1536x256
         this.load.spritesheet('footballer1', 'Assets/FOOTBALLER_NEW.png', {
