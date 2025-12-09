@@ -427,16 +427,16 @@ class SelectionScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        // Create panel container - smaller panel with only one toggle
-        this.debugPanel = this.add.container(width - 200, height - 180);
+        // Create panel container with all three debug options
+        this.debugPanel = this.add.container(width - 200, height - 250);
         this.debugPanel.setDepth(2000);
         
-        // Panel background - smaller
-        const panelBg = this.add.rectangle(0, 0, 350, 120, 0x000000, 0.9);
+        // Panel background
+        const panelBg = this.add.rectangle(0, 0, 350, 220, 0x000000, 0.9);
         panelBg.setStrokeStyle(3, 0xFFD700);
         
         // Panel title
-        const title = this.add.text(0, -40, 'DEBUG PANEL', {
+        const title = this.add.text(0, -90, 'DEBUG PANEL', {
             fontSize: '24px',
             fontStyle: 'bold',
             fill: '#FFD700'
@@ -444,12 +444,22 @@ class SelectionScene extends Phaser.Scene {
         
         this.debugPanel.add([panelBg, title]);
         
-        // Get current debug state - only Force Bonus
+        // Get current debug states
+        const forceGoal = this.registry.get('forceGoal') || false;
         const forceBonus = this.registry.get('forceBonus') || false;
+        const testMode = this.registry.get('testMode') || false;
         
-        // Create single toggle button for Force Bonus
+        // Create three toggle buttons
+        this.createDebugToggle('Force Goal', forceGoal, -50, (enabled) => {
+            this.registry.set('forceGoal', enabled);
+        });
+        
         this.createDebugToggle('Force Bonus', forceBonus, 0, (enabled) => {
             this.registry.set('forceBonus', enabled);
+        });
+        
+        this.createDebugToggle('Test Mode', testMode, 50, (enabled) => {
+            this.registry.set('testMode', enabled);
         });
         
         // Hide initially
