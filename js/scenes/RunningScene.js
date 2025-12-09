@@ -1647,11 +1647,136 @@ class RunningScene extends Phaser.Scene {
             playerPositions: this.players.map((p, i) => ({ index: i, x: p.sprite.x, y: p.sprite.y, visible: p.sprite.visible, hasBall: p.hasBall, ballVisible: p.ball ? p.ball.visible : 'no ball' }))
         });
         
-        // Resume running immediately (no decision scene)
-        this.isRunning = true;
-        this.multiplierPaused = false; // Ensure multiplier continues
+        // Show bonus addition animation before resuming
+        const bonusWinAmount = this.registry.get('bonusWinAmount') || 0;
+        if (bonusWinAmount > 0) {
+            this.showBonusAddedAnimation(bonusWinAmount);
+        } else {
+            // Resume immediately if no bonus
+            this.isRunning = true;
+            this.multiplierPaused = false;
+            console.log('isRunning set to true, game should continue');
+        }
+    }
+    
+    showBonusAddedAnimation(bonusAmount) {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
         
-        console.log('isRunning set to true, game should continue');
+        console.log('Showing bonus added animation:', bonusAmount);
+        
+        // Keep game paused during animation
+        this.isRunning = false;
+        
+        // Current game value
+        const currentValue = this.formatCashValue(this.currentMultiplier);
+        
+        // Semi-transparent overlay
+        const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7)
+            .setOrigin(0, 0)
+            .setDepth(15000)
+            .setScrollFactor(0);
+        
+        // "BONUS ADDED!" text
+        const bonusAddedText = this.add.text(width / 2, height / 2 - 100, 'BONUS ADDED!', {
+            fontSize: '48px',
+            fontStyle: 'bold',
+            fill: '#FFD700',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5).setDepth(15001).setScrollFactor(0).setAlpha(0);
+        
+        // Current game value
+        const currentValueText = this.add.text(width / 2, height / 2, currentValue, {
+            fontSize: '42px',
+            fontStyle: 'bold',
+            fill: '#FFFFFF',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(15001).setScrollFactor(0).setAlpha(0);
+        
+        // Plus sign
+        const plusText = this.add.text(width / 2, height / 2 + 60, '+', {
+            fontSize: '36px',
+            fontStyle: 'bold',
+            fill: '#00FF00',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(15001).setScrollFactor(0).setAlpha(0);
+        
+        // Bonus amount
+        const bonusAmountText = this.add.text(width / 2, height / 2 + 110, `£${bonusAmount.toFixed(2)}`, {
+            fontSize: '42px',
+            fontStyle: 'bold',
+            fill: '#00FF00',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(15001).setScrollFactor(0).setAlpha(0);
+        
+        // Equals line
+        const equalsText = this.add.text(width / 2 - 60, height / 2 + 170, '═══════', {
+            fontSize: '36px',
+            fill: '#FFFFFF'
+        }).setOrigin(0, 0.5).setDepth(15001).setScrollFactor(0).setAlpha(0);
+        
+        // New total (game value stays same, this is just for display)
+        const newTotal = (this.currentMultiplier * this.selectedStake / 100) + bonusAmount;
+        const newTotalText = this.add.text(width / 2, height / 2 + 230, `£${newTotal.toFixed(2)}`, {
+            fontSize: '48px',
+            fontStyle: 'bold',
+            fill: '#FFD700',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5).setDepth(15001).setScrollFactor(0).setAlpha(0);
+        
+        // Animation sequence
+        this.tweens.add({
+            targets: bonusAddedText,
+            alpha: 1,
+            duration: 300,
+            ease: 'Power2'
+        });
+        
+        this.time.delayedCall(300, () => {
+            this.tweens.add({
+                targets: [currentValueText, plusText, bonusAmountText],
+                alpha: 1,
+                duration: 400,
+                ease: 'Power2'
+            });
+        });
+        
+        this.time.delayedCall(1000, () => {
+            this.tweens.add({
+                targets: [equalsText, newTotalText],
+                alpha: 1,
+                duration: 400,
+                ease: 'Power2'
+            });
+        });
+        
+        // Clean up and resume game after animation
+        this.time.delayedCall(2500, () => {
+            this.tweens.add({
+                targets: [overlay, bonusAddedText, currentValueText, plusText, bonusAmountText, equalsText, newTotalText],
+                alpha: 0,
+                duration: 300,
+                onComplete: () => {
+                    overlay.destroy();
+                    bonusAddedText.destroy();
+                    currentValueText.destroy();
+                    plusText.destroy();
+                    bonusAmountText.destroy();
+                    equalsText.destroy();
+                    newTotalText.destroy();
+                    
+                    // Now resume the game
+                    this.isRunning = true;
+                    this.multiplierPaused = false;
+                    console.log('Bonus animation complete, game resuming');
+                }
+            });
+        });
     }
     
     showRefereeAndStartBonus() {
