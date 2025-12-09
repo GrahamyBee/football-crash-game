@@ -15,6 +15,9 @@ class RunningScene extends Phaser.Scene {
         this.playerPositions = [0, 0, 0, 0];
         this.testModeEnabled = this.registry.get('testModeEnabled') || false;
         
+        // Player destruction flags: 0 = active, 1 = destroyed, 99 = destroyed + triggered bonus
+        this.playerDestroyedFlags = [0, 0, 0, 0];
+        
         // Decision thresholds based on MULTIPLES of stake
         // 3x (3s), 8x (+5x/5s), 13x (+5x/5s), 20x (+7x/7s)
         const stakeInPounds = this.selectedStake / 100;
@@ -715,6 +718,9 @@ class RunningScene extends Phaser.Scene {
         
         player.active = false;
         
+        // Mark player as destroyed (will be upgraded to 99 if bonus triggers)
+        this.playerDestroyedFlags[playerIndex] = 1;
+        
         // Store reference to the opposition that caused the tackle (for bonus round)
         if (opponent) {
             this.lastTackler = opponent;
@@ -829,6 +835,10 @@ class RunningScene extends Phaser.Scene {
             });
             
             if (bonusTriggered) {
+                // Mark this player as the bonus round player (flag = 99)
+                this.playerDestroyedFlags[playerIndex] = 99;
+                console.log(`Player ${playerIndex} flagged as bonus player (99)`);
+                
                 // Show referee and trigger bonus round
                 console.log('Bonus round will trigger in 1.5 seconds...');
                 this.time.delayedCall(1500, () => {
@@ -1524,12 +1534,13 @@ class RunningScene extends Phaser.Scene {
         }
         
         // Save player positions and states
-        const playerStates = this.players.map(player => ({
+        const playerStates = this.players.map((player, index) => ({
             x: player.sprite.x,
             y: player.sprite.y,
             active: player.active,
             hasBall: player.hasBall,
-            perspectiveScale: player.perspectiveScale
+            perspectiveScale: player.perspectiveScale,
+            destroyedFlag: this.playerDestroyedFlags[index] // Save destruction flag
         }));
         
         // Save opposition positions and states (except the one that caused the tackle)
@@ -1574,25 +1585,37 @@ class RunningScene extends Phaser.Scene {
         const state = this.savedGameState;
         const bonusPlayerIndex = this.bonusRoundPlayerIndex;
         
-        // STEP 1: Restore each player
+        // STEP 1: Restore each player based on destroyed flag
+        console.log('Player destroyed flags:', this.playerDestroyedFlags);
+        
         this.players.forEach((player, index) => {
             const savedState = state.players[index];
-            const isBonusPlayer = (bonusPlayerIndex === index);
+            const destroyedFlag = savedState.destroyedFlag || 0;
             
             console.log(`\n--- Player ${index} ---`);
-            console.log('Saved state:', { active: savedState.active, hasBall: savedState.hasBall, pos: { x: savedState.x, y: savedState.y }});
-            console.log('Is bonus player:', isBonusPlayer);
-            console.log('Current sprite exists:', !!(player.sprite && player.sprite.active !== false));
+            console.log('Destroyed flag:', destroyedFlag, '(0=active, 1=destroyed, 99=bonus player)');
+            console.log('Saved state:', { active: savedState.active, pos: { x: savedState.x, y: savedState.y }});
             
-            // Update player state
+            // ONLY redraw players that are NOT flag 1 (skip normally destroyed players)
+            if (destroyedFlag === 1) {
+                console.log(`→ SKIPPING - player was destroyed (flag=1)`);
+                player.active = false;
+                return;
+            }
+            
+            // For flag 0 (active) or flag 99 (bonus player), restore/recreate
             player.active = savedState.active;
             
-            // STEP 1A: Ensure sprite exists
             const spriteExists = player.sprite && player.sprite.active !== false;
+            const needsRecreation = !spriteExists || destroyedFlag === 99;
             
-            if (!spriteExists && savedState.active) {
-                // RECREATE: Sprite was destroyed but player is active
-                console.log(`→ RECREATING sprite for active player ${index}`);
+            if (needsRecreation) {
+                console.log(`→ RECREATING sprite (flag=${destroyedFlag})`);
+                
+                // Destroy old sprite if it exists
+                if (player.sprite && player.sprite.destroy) {
+                    player.sprite.destroy();
+                }
                 
                 const spriteKey = `footballer${index + 1}`;
                 const animKey = `run${index + 1}`;
@@ -1601,8 +1624,6 @@ class RunningScene extends Phaser.Scene {
                     const newSprite = this.add.sprite(savedState.x, savedState.y, spriteKey);
                     newSprite.setScale(0.5 * savedState.perspectiveScale);
                     newSprite.setDepth(10000);
-                    newSprite.setVisible(true);
-                    newSprite.setAlpha(1);
                     newSprite.play(animKey);
                     player.sprite = newSprite;
                     console.log(`→ Created animated sprite at (${savedState.x}, ${savedState.y})`);
@@ -1610,33 +1631,24 @@ class RunningScene extends Phaser.Scene {
                     const newSprite = this.add.circle(savedState.x, savedState.y, 40 * savedState.perspectiveScale, GameConfig.PLAYER_COLORS[index]);
                     newSprite.setStrokeStyle(2, 0xffffff);
                     newSprite.setDepth(10000);
-                    newSprite.setVisible(true);
-                    newSprite.setAlpha(1);
                     player.sprite = newSprite;
                     console.log(`→ Created circle sprite at (${savedState.x}, ${savedState.y})`);
                 }
-            } else if (spriteExists) {
-                // RESTORE: Sprite exists, just update properties
-                console.log(`→ RESTORING existing sprite for player ${index}`);
+            } else {
+                console.log(`→ RESTORING existing sprite`);
                 player.sprite.setPosition(savedState.x, savedState.y);
-                player.sprite.setVisible(true);
-                player.sprite.setAlpha(1);
                 player.sprite.setDepth(10000);
                 
                 if (player.sprite.anims && player.sprite.anims.currentAnim) {
                     player.sprite.anims.resume();
                 }
-                console.log(`→ Restored sprite to (${savedState.x}, ${savedState.y})`);
-            } else {
-                // SKIP: Inactive player with destroyed sprite
-                console.log(`→ SKIPPING - inactive player with destroyed sprite`);
             }
             
-            // STEP 1B: Handle ball (only for bonus player)
-            if (isBonusPlayer && player.sprite) {
+            // STEP 1B: Handle ball for bonus player (flag 99)
+            if (destroyedFlag === 99) {
                 console.log(`→ RECREATING ball for bonus player ${index}`);
                 
-                // Destroy old ball if it somehow exists
+                // Clean up old ball
                 if (player.ball) {
                     player.ball.destroy();
                 }
@@ -1650,12 +1662,11 @@ class RunningScene extends Phaser.Scene {
                 const ball = this.add.image(savedState.x + offsetX, savedState.y + offsetY, 'football');
                 ball.setScale(0.08 * savedState.perspectiveScale);
                 ball.setDepth(10002);
-                ball.setVisible(true);
-                ball.setAlpha(1);
                 
                 player.ball = ball;
                 player.sprite.ball = ball;
                 player.hasBall = true;
+                player.active = true; // Make sure bonus player is active
                 
                 // Create rotation tween
                 player.ballTween = this.tweens.add({
@@ -1666,7 +1677,7 @@ class RunningScene extends Phaser.Scene {
                     ease: 'Linear'
                 });
                 
-                console.log(`→ Created ball at (${ball.x}, ${ball.y}), visible: ${ball.visible}, depth: ${ball.depth}`);
+                console.log(`→ Created ball at (${ball.x}, ${ball.y})`);
                 
                 // STEP 1C: Create indicator
                 console.log(`→ RECREATING indicator for bonus player ${index}`);
