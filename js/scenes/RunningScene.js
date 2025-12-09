@@ -1610,15 +1610,15 @@ class RunningScene extends Phaser.Scene {
         // Create referee image below screen (showing only 66% when slid up)
         const refereeHeight = 400; // Approximate height of referee image at scale
         const visiblePercent = 0.66;
-        const slideUpY = height - (refereeHeight * visiblePercent * 0.3); // 0.3 is the scale
+        const slideUpY = height - (refereeHeight * visiblePercent * 0.9); // 0.9 is the scale (3x bigger)
         
         const referee = this.add.image(width / 2, height + 100, 'referee')
-            .setScale(0.3)
+            .setScale(0.9)
             .setDepth(10000)
             .setScrollFactor(0);
         
         // Add referee whistle text (initially hidden)
-        const whistleText = this.add.text(width / 2, slideUpY - 150, 'REFEREE WHISTLE!', {
+        const whistleText = this.add.text(width / 2, slideUpY - 250, 'REFEREE WHISTLE!', {
             fontSize: '48px',
             fontStyle: 'bold',
             fill: '#FFD700',
@@ -1626,7 +1626,7 @@ class RunningScene extends Phaser.Scene {
             strokeThickness: 6
         }).setOrigin(0.5).setDepth(10000).setScrollFactor(0).setAlpha(0);
         
-        const bonusText = this.add.text(width / 2, slideUpY - 100, 'BONUS ROUND!', {
+        const bonusText = this.add.text(width / 2, slideUpY - 180, 'BONUS ROUND!', {
             fontSize: '36px',
             fontStyle: 'bold',
             fill: '#FFFFFF',
