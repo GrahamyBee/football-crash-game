@@ -1537,6 +1537,7 @@ class RunningScene extends Phaser.Scene {
         this.players.forEach((player, index) => {
             const savedState = state.players[index];
             player.sprite.setPosition(savedState.x, savedState.y);
+            player.sprite.setVisible(true); // Ensure player is visible
             player.active = savedState.active;
             player.hasBall = savedState.hasBall;
             
@@ -1545,6 +1546,12 @@ class RunningScene extends Phaser.Scene {
                 const offsetX = 47 * savedState.perspectiveScale;
                 const offsetY = 40 * savedState.perspectiveScale;
                 player.ball.setPosition(savedState.x + offsetX, savedState.y + offsetY);
+                player.ball.setVisible(true); // Ensure ball is visible
+            }
+            
+            // Show indicator for active player
+            if (player.indicator) {
+                player.indicator.setVisible(player.active);
             }
         });
         
