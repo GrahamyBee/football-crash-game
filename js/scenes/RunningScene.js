@@ -715,9 +715,6 @@ class RunningScene extends Phaser.Scene {
         
         player.active = false;
         
-        // Mark player as destroyed (will be upgraded to 99 if bonus triggers)
-        this.playerDestroyedFlags[playerIndex] = 1;
-        
         // Store reference to the opposition that caused the tackle (for bonus round)
         if (opponent) {
             this.lastTackler = opponent;
