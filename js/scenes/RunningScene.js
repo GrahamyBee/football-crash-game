@@ -779,6 +779,9 @@ class RunningScene extends Phaser.Scene {
         
         // Check if the crashed player had the ball - if so, check for bonus round
         if (player.hasBall) {
+            // IMPORTANT: Save which player had the ball BEFORE we clear it
+            this.bonusRoundPlayerIndex = playerIndex;
+            
             player.hasBall = false;
             player.ball = null;
             
@@ -791,6 +794,7 @@ class RunningScene extends Phaser.Scene {
             const bonusTriggered = forceBonus || (randomValue < 0.2); // 1 in 5 chance (20%)
             
             console.log('Player with ball tackled!', {
+                playerIndex: playerIndex,
                 forceBonus: forceBonus,
                 randomValue: randomValue,
                 bonusTriggered: bonusTriggered,
@@ -1611,8 +1615,11 @@ class RunningScene extends Phaser.Scene {
             player.active = savedState.active;
             player.hasBall = savedState.hasBall;
             
-            // Restore or recreate ball if player had it
-            if (savedState.hasBall) {
+            // Check if this was the player who triggered the bonus round (they had the ball)
+            const isBonusRoundPlayer = (this.bonusRoundPlayerIndex !== undefined && this.bonusRoundPlayerIndex === index);
+            
+            // Restore or recreate ball if player had it OR if this is the bonus round player
+            if (savedState.hasBall || isBonusRoundPlayer) {
                 const offsetX = 47 * savedState.perspectiveScale;
                 const offsetY = 40 * savedState.perspectiveScale;
                 
@@ -1660,8 +1667,8 @@ class RunningScene extends Phaser.Scene {
                 }
             }
             
-            // Restore or recreate indicator for active player
-            if (savedState.hasBall) {
+            // Restore or recreate indicator for active player with ball
+            if (savedState.hasBall || isBonusRoundPlayer) {
                 if (player.indicator && player.indicator.active !== false) {
                     player.indicator.setVisible(player.active);
                     player.indicator.setActive(true);
@@ -1674,10 +1681,17 @@ class RunningScene extends Phaser.Scene {
                         fontSize: `${indicatorFontSize}px`,
                         fontStyle: 'bold',
                         fill: '#ffff00'
-                    }).setOrigin(0.5);
+                    }).setOrigin(0.5).setDepth(10001);
                     
                     player.indicator = indicator;
                     player.sprite.indicator = indicator;
+                    this.children.bringToTop(indicator);
+                }
+                
+                // Mark this player as having the ball again
+                if (isBonusRoundPlayer) {
+                    player.hasBall = true;
+                    console.log(`Restored ball to bonus round player ${index}`);
                 }
             }
         });
@@ -1744,8 +1758,9 @@ class RunningScene extends Phaser.Scene {
         this.sys.displayList.depthSort();
         this.cameras.main.flash(1, 0, 0, 0, true); // Invisible flash to force render refresh
         
-        // Clear saved state
+        // Clear saved state and bonus round player index
         this.savedGameState = null;
+        this.bonusRoundPlayerIndex = undefined;
         
         console.log('Game state restored, resuming gameplay...', {
             multiplier: this.currentMultiplier,
