@@ -494,17 +494,39 @@ class RunningScene extends Phaser.Scene {
     }
     
     startNewWave() {
-        // Random wave size: 0-3 opponents
-        this.currentWaveCount = Math.floor(Math.random() * 4); // 0, 1, 2, or 3
-        this.waveOpponentsSpawned = 0;
-        this.currentWaveActive = true;
-        this.allWaveOpponentsGone = false;
-        this.lastOpponentSpawnTime = this.elapsedTime;
+        const forceBonus = this.registry.get('forceBonus') || false;
         
-        // If wave is 0, immediately mark as complete
-        if (this.currentWaveCount === 0) {
-            this.currentWaveActive = false;
-            this.allWaveOpponentsGone = true;
+        if (forceBonus) {
+            // Force Bonus Mode: Spawn opponent in EVERY active lane simultaneously
+            const activeLanes = [];
+            this.players.forEach((player, index) => {
+                if (player.active) activeLanes.push(index);
+            });
+            
+            console.log('Force Bonus Wave: Spawning opponents in all active lanes:', activeLanes);
+            
+            // Spawn all opponents immediately at the same distance
+            activeLanes.forEach(lane => {
+                this.spawnOpponent(lane, true); // Pass true to indicate synchronized spawn
+            });
+            
+            this.currentWaveCount = activeLanes.length;
+            this.waveOpponentsSpawned = activeLanes.length;
+            this.currentWaveActive = true;
+            this.allWaveOpponentsGone = false;
+        } else {
+            // Normal mode: Random wave size: 0-3 opponents
+            this.currentWaveCount = Math.floor(Math.random() * 4); // 0, 1, 2, or 3
+            this.waveOpponentsSpawned = 0;
+            this.currentWaveActive = true;
+            this.allWaveOpponentsGone = false;
+            this.lastOpponentSpawnTime = this.elapsedTime;
+            
+            // If wave is 0, immediately mark as complete
+            if (this.currentWaveCount === 0) {
+                this.currentWaveActive = false;
+                this.allWaveOpponentsGone = true;
+            }
         }
     }
     
@@ -522,20 +544,25 @@ class RunningScene extends Phaser.Scene {
         this.waveOpponentsSpawned++;
     }
     
-    spawnOpponent(lane) {
-        // Don't spawn too many opponents
-        if (this.opponents[lane].length >= 2) return;
+    spawnOpponent(lane, synchronizedSpawn = false) {
+        // Don't spawn too many opponents (unless synchronized Force Bonus spawn)
+        if (!synchronizedSpawn && this.opponents[lane].length >= 2) return;
         
         const width = this.cameras.main.width;
         
         // Horizontal stagger matching player positions
         const horizontalStagger = [240, 160, 80, 0]; // Lane 1 furthest back, Lane 4 most forward (80px gaps each)
         
+        // For synchronized spawns (Force Bonus), spawn at fixed distance so all collide together
         // For pre-decision opponents, spawn so all interactions happen within 3 seconds
         // Player is at x=200, opponents move at 150px/s (1.5x world speed)
         // Spawn at various distances: 375px = 2.5s, 300px = 2.0s, 225px = 1.5s travel time
         let x;
-        if (this.isPreFirstDecision && !this.preDecisionAllInteractionsComplete) {
+        if (synchronizedSpawn) {
+            // Force Bonus: All opponents spawn at same distance (300px = 2.0 seconds travel time)
+            const distance = 300;
+            x = 200 + horizontalStagger[lane] + distance;
+        } else if (this.isPreFirstDecision && !this.preDecisionAllInteractionsComplete) {
             // Random spawn distance 225-375 pixels from player (1.5-2.5 seconds at 150px/s)
             const distance = 225 + Math.random() * 150;
             x = 200 + horizontalStagger[lane] + distance;
