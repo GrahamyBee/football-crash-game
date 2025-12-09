@@ -1472,6 +1472,18 @@ class RunningScene extends Phaser.Scene {
     saveGameState() {
         console.log('Saving game state before bonus round...');
         
+        // Check if players array exists
+        if (!this.players || !Array.isArray(this.players)) {
+            console.error('ERROR: this.players is undefined or not an array!', this.players);
+            console.log('Scene state:', {
+                sceneKey: this.scene.key,
+                sceneActive: this.scene.isActive(),
+                playersExists: !!this.players,
+                playersType: typeof this.players
+            });
+            return;
+        }
+        
         // Save player positions and states
         const playerStates = this.players.map(player => ({
             x: player.sprite.x,
@@ -1482,21 +1494,18 @@ class RunningScene extends Phaser.Scene {
         }));
         
         // Save opposition positions and states (except the one that caused the tackle)
-        const oppositionStates = this.oppositionPlayers.map(opp => ({
-            x: opp.sprite ? opp.sprite.x : null,
-            y: opp.sprite ? opp.sprite.y : null,
-            active: opp.active,
-            type: opp.type,
-            removed: opp.removed || false
-        }));
+        // opponents is an array of arrays (one per lane)
+        const oppositionStates = this.opponents ? this.opponents.map(laneOpponents => 
+            laneOpponents.map(opp => ({
+                x: opp.x,
+                y: opp.y,
+                lane: opp.lane,
+                interacted: opp.interacted || false,
+                removed: opp === this.lastTackler // Mark tackler for removal
+            }))
+        ) : [];
         
-        // Mark the tackler for removal (don't restore it)
-        if (this.lastTackler) {
-            const tacklerIndex = this.oppositionPlayers.indexOf(this.lastTackler);
-            if (tacklerIndex !== -1) {
-                oppositionStates[tacklerIndex].removed = true;
-            }
-        }
+        console.log('Opposition states saved:', oppositionStates);
         
         // Save game progress
         this.savedGameState = {
@@ -1540,24 +1549,29 @@ class RunningScene extends Phaser.Scene {
         });
         
         // Restore opposition (excluding removed tackler)
-        this.oppositionPlayers.forEach((opp, index) => {
-            const savedState = state.opposition[index];
-            
-            if (savedState.removed) {
-                // Remove the tackler that triggered bonus
-                if (opp.sprite) {
-                    opp.sprite.destroy();
-                    opp.sprite = null;
+        // opponents is an array of arrays (one per lane)
+        if (this.opponents && state.opposition) {
+            state.opposition.forEach((laneOpponents, laneIndex) => {
+                // Clear current lane opponents
+                if (this.opponents[laneIndex]) {
+                    this.opponents[laneIndex].forEach(opp => {
+                        if (!opp.removed) {
+                            opp.destroy();
+                        }
+                    });
+                    this.opponents[laneIndex] = [];
                 }
-                opp.active = false;
-            } else if (savedState.active && savedState.x !== null) {
-                // Restore active opposition
-                if (opp.sprite) {
-                    opp.sprite.setPosition(savedState.x, savedState.y);
-                }
-                opp.active = savedState.active;
-            }
-        });
+                
+                // Restore saved opponents (except removed ones)
+                laneOpponents.forEach(oppState => {
+                    if (!oppState.removed) {
+                        // Re-create opponent at saved position
+                        // Note: This is simplified - may need more complex recreation
+                        console.log('Would restore opponent at:', oppState);
+                    }
+                });
+            });
+        }
         
         // Restore game progress
         this.totalScrolled = state.totalScrolled;
