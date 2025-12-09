@@ -50,6 +50,14 @@ class RunningScene extends Phaser.Scene {
         this.allWaveOpponentsGone = false; // All wave opponents off screen or destroyed
         this.waveSpawnedThisSection = false; // Flag: has a wave been spawned for current decision section
         
+        // Set up scene resume handler for bonus round returns
+        this.events.on('resume', () => {
+            console.log('RunningScene resumed - restoring game state');
+            if (this.savedGameState) {
+                this.restoreGameState();
+            }
+        });
+        
         // Create pitch
         this.createPitch();
         
@@ -1513,6 +1521,7 @@ class RunningScene extends Phaser.Scene {
             opposition: oppositionStates,
             totalScrolled: this.totalScrolled || 0,
             backgroundX: this.background ? this.background.tilePositionX : 0,
+            cameraScrollX: this.cameraScrollX || 0,
             currentMultiplier: this.currentMultiplier,
             isRunning: this.isRunning,
             selectedPlayer: this.selectedPlayer,
@@ -1536,8 +1545,18 @@ class RunningScene extends Phaser.Scene {
         // Restore player positions and states
         this.players.forEach((player, index) => {
             const savedState = state.players[index];
+            console.log(`Restoring player ${index}:`, {
+                savedPos: { x: savedState.x, y: savedState.y },
+                currentPos: { x: player.sprite.x, y: player.sprite.y },
+                active: savedState.active,
+                hasBall: savedState.hasBall,
+                spriteVisible: player.sprite.visible,
+                spriteExists: !!player.sprite
+            });
+            
             player.sprite.setPosition(savedState.x, savedState.y);
             player.sprite.setVisible(true); // Ensure player is visible
+            player.sprite.setAlpha(1); // Ensure full opacity
             player.active = savedState.active;
             player.hasBall = savedState.hasBall;
             
@@ -1547,6 +1566,8 @@ class RunningScene extends Phaser.Scene {
                 const offsetY = 40 * savedState.perspectiveScale;
                 player.ball.setPosition(savedState.x + offsetX, savedState.y + offsetY);
                 player.ball.setVisible(true); // Ensure ball is visible
+                player.ball.setAlpha(1); // Ensure full opacity
+                console.log(`Ball restored for player ${index} at:`, { x: player.ball.x, y: player.ball.y, visible: player.ball.visible });
             }
             
             // Show indicator for active player
@@ -1585,6 +1606,7 @@ class RunningScene extends Phaser.Scene {
         if (this.background) {
             this.background.tilePositionX = state.backgroundX;
         }
+        this.cameraScrollX = state.cameraScrollX || 0;
         this.currentMultiplier = state.currentMultiplier;
         this.waveOpponentsSpawned = state.waveOpponentsSpawned;
         this.currentWaveCount = state.currentWaveCount;
@@ -1595,7 +1617,9 @@ class RunningScene extends Phaser.Scene {
         console.log('Game state restored, resuming gameplay...', {
             multiplier: this.currentMultiplier,
             totalScrolled: this.totalScrolled,
-            activePlayers: this.players.filter(p => p.active).length
+            cameraScrollX: this.cameraScrollX,
+            activePlayers: this.players.filter(p => p.active).length,
+            playerPositions: this.players.map((p, i) => ({ index: i, x: p.sprite.x, y: p.sprite.y, visible: p.sprite.visible, hasBall: p.hasBall, ballVisible: p.ball ? p.ball.visible : 'no ball' }))
         });
         
         // Resume running immediately (no decision scene)
