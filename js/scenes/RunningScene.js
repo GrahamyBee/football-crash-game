@@ -1557,6 +1557,18 @@ class RunningScene extends Phaser.Scene {
             player.sprite.setPosition(savedState.x, savedState.y);
             player.sprite.setVisible(true); // Ensure player is visible
             player.sprite.setAlpha(1); // Ensure full opacity
+            player.sprite.setActive(true); // Ensure sprite is active
+            
+            // Force depth to ensure visibility
+            if (player.sprite.depth === undefined) {
+                player.sprite.setDepth(1000);
+            }
+            
+            // Resume animation if it's a sprite with animation
+            if (player.sprite.anims && player.sprite.anims.currentAnim) {
+                player.sprite.anims.resume();
+            }
+            
             player.active = savedState.active;
             player.hasBall = savedState.hasBall;
             
@@ -1567,12 +1579,21 @@ class RunningScene extends Phaser.Scene {
                 player.ball.setPosition(savedState.x + offsetX, savedState.y + offsetY);
                 player.ball.setVisible(true); // Ensure ball is visible
                 player.ball.setAlpha(1); // Ensure full opacity
+                player.ball.setActive(true); // Ensure ball is active
+                player.ball.setDepth(1002); // Ensure ball is on top
+                
+                // Resume ball rotation if tween exists
+                if (player.ballTween) {
+                    player.ballTween.resume();
+                }
+                
                 console.log(`Ball restored for player ${index} at:`, { x: player.ball.x, y: player.ball.y, visible: player.ball.visible });
             }
             
             // Show indicator for active player
             if (player.indicator) {
                 player.indicator.setVisible(player.active);
+                player.indicator.setActive(true);
             }
         });
         
@@ -1610,6 +1631,10 @@ class RunningScene extends Phaser.Scene {
         this.currentMultiplier = state.currentMultiplier;
         this.waveOpponentsSpawned = state.waveOpponentsSpawned;
         this.currentWaveCount = state.currentWaveCount;
+        
+        // Force scene to re-render by marking display list as dirty
+        this.sys.displayList.depthSort();
+        this.cameras.main.flash(1, 0, 0, 0, true); // Invisible flash to force render refresh
         
         // Clear saved state
         this.savedGameState = null;
