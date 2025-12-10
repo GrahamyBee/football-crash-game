@@ -1238,7 +1238,8 @@ class RunningScene extends Phaser.Scene {
                     if (willScore) {
                         // GOAL! Keep multiplier and add win text
                         // Current prize (shown at top) × shooting multiplier = Total Win
-                        const currentPrizeInPence = this.selectedStake * this.currentMultiplier;
+                        const displayMultiplier = this.currentMultiplier + (this.totalBonusWon * 100 / this.selectedStake);
+                        const currentPrizeInPence = this.selectedStake * displayMultiplier;
                         const totalWinInPence = currentPrizeInPence * currentMultiplier;
                         
                         // Add winnings to wallet
@@ -1347,7 +1348,8 @@ class RunningScene extends Phaser.Scene {
                     if (willScore) {
                         // GOAL! Keep multiplier and add win text
                         // Current prize (shown at top) × shooting multiplier = Total Win
-                        const currentPrizeInPence = this.selectedStake * this.currentMultiplier;
+                        const displayMultiplier = this.currentMultiplier + (this.totalBonusWon * 100 / this.selectedStake);
+                        const currentPrizeInPence = this.selectedStake * displayMultiplier;
                         const totalWinInPence = currentPrizeInPence * currentMultiplier;
                         
                         // Add winnings to wallet
@@ -1457,14 +1459,15 @@ class RunningScene extends Phaser.Scene {
     handleShootingResult(scored, shootingMultiplier = 10.0) {
         if (scored) {
             // Goal scored - show success and proceed
-            const currentPrizeInPence = this.selectedStake * this.currentMultiplier;
+            const displayMultiplier = this.currentMultiplier + (this.totalBonusWon * 100 / this.selectedStake);
+            const currentPrizeInPence = this.selectedStake * displayMultiplier;
             const totalWinInPence = currentPrizeInPence * shootingMultiplier;
             
             this.registry.set('won', true);
-            this.registry.set('crashMultiplier', this.currentMultiplier); // Store crash game multiplier
+            this.registry.set('crashMultiplier', displayMultiplier); // Store total crash game multiplier (base + bonuses)
             this.registry.set('shootingMultiplier', shootingMultiplier); // Store shooting multiplier
             this.registry.set('crashWinAmount', currentPrizeInPence / 100); // Crash game winnings in pounds
-            this.registry.set('finalMultiplier', this.currentMultiplier * shootingMultiplier);
+            this.registry.set('finalMultiplier', displayMultiplier * shootingMultiplier);
             this.registry.set('finalValue', totalWinInPence / 100); // Convert to pounds
             this.registry.set('outcomeType', 'goal');
             
@@ -1534,6 +1537,7 @@ class RunningScene extends Phaser.Scene {
         
         // Store current state
         this.registry.set('currentMultiplier', this.currentMultiplier);
+        this.registry.set('totalBonusWon', this.totalBonusWon);
         this.registry.set('activePlayers', this.players.map(p => p.active));
         this.registry.set('playerPositions', this.playerPositions);
         this.registry.set('elapsedTime', this.elapsedTime);

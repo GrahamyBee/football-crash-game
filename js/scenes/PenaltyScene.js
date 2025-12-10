@@ -187,7 +187,8 @@ class PenaltyScene extends Phaser.Scene {
                 const totalWin = this.currentPrize * multiplier;
                 
                 // Store breakdown for OutcomeScene
-                const crashMultiplier = this.registry.get('currentMultiplier') || 1.0;
+                // currentPrize already includes base multiplier + bonuses (calculated in DecisionScene)
+                const crashMultiplier = this.currentPrize / this.selectedStake; // This is the display multiplier
                 this.registry.set('crashMultiplier', crashMultiplier);
                 this.registry.set('shootingMultiplier', multiplier); // Penalty zone multiplier
                 this.registry.set('crashWinAmount', this.currentPrize / 100); // Crash game winnings in pounds

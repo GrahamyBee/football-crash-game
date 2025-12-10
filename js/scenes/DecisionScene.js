@@ -11,9 +11,13 @@ class DecisionScene extends Phaser.Scene {
         this.selectedPlayer = this.registry.get('selectedPlayer');
         this.selectedStake = this.registry.get('selectedStake');
         this.currentMultiplier = this.registry.get('currentMultiplier');
+        this.totalBonusWon = this.registry.get('totalBonusWon') || 0;
         this.activePlayers = this.registry.get('activePlayers');
         this.currentDecisionIndex = this.registry.get('currentDecisionIndex') || 0;
         this.isFinalDecision = (this.currentDecisionIndex === 3);
+        
+        // Calculate total display value (base multiplier + bonuses)
+        const displayMultiplier = this.currentMultiplier + (this.totalBonusWon * 100 / this.selectedStake);
         
         // Semi-transparent overlay
         this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0);
@@ -35,8 +39,8 @@ class DecisionScene extends Phaser.Scene {
             fill: this.isFinalDecision ? '#FF0000' : '#ffff00'
         }).setOrigin(0.5);
         
-        // Cash value
-        const cashValue = this.formatCashValue(this.currentMultiplier);
+        // Cash value - now shows total including bonuses
+        const cashValue = this.formatCashValue(displayMultiplier);
         this.add.text(panelX, panelY - 110, `Current Value: ${cashValue}`, {
             fontSize: '24px',
             fill: '#ffffff'
@@ -198,8 +202,9 @@ class DecisionScene extends Phaser.Scene {
     
     shootPenalty() {
         
-        // Store current prize in registry for PenaltyScene
-        const currentPrize = this.selectedStake * this.currentMultiplier;
+        // Store current prize in registry for PenaltyScene (base + bonuses)
+        const displayMultiplier = this.currentMultiplier + (this.totalBonusWon * 100 / this.selectedStake);
+        const currentPrize = this.selectedStake * displayMultiplier;
         this.registry.set('currentPrize', currentPrize);
         
         // Stop decision and running scenes
@@ -211,10 +216,11 @@ class DecisionScene extends Phaser.Scene {
     }
     
     cashOut() {
-        // Cash out - end game with current value
-        const finalValue = (this.selectedStake / 100) * this.currentMultiplier;
+        // Cash out - end game with current value (including bonuses)
+        const displayMultiplier = this.currentMultiplier + (this.totalBonusWon * 100 / this.selectedStake);
+        const finalValue = (this.selectedStake / 100) * displayMultiplier;
         
-        this.registry.set('finalMultiplier', this.currentMultiplier);
+        this.registry.set('finalMultiplier', displayMultiplier);
         this.registry.set('finalValue', finalValue);
         this.registry.set('won', true);
         this.registry.set('cashedOut', true);
