@@ -48,6 +48,7 @@ class RunningScene extends Phaser.Scene {
         this.multiplierPaused = false; // Pause multiplier at decision point
         this.waitingForDecision = false; // Block spawning when decision window ready
         this.decisionTriggered = false; // Prevent duplicate decision triggers
+        this.decisionSafetyTimeout = null; // Safety timeout for mobile devices
         this.currentWaveActive = false; // Is a wave currently spawning/active
         this.currentWaveCount = 0; // Number of opponents in current wave
         this.waveOpponentsSpawned = 0; // How many spawned so far
@@ -376,7 +377,19 @@ class RunningScene extends Phaser.Scene {
                     // If opponents spawned, wait for all interactions to complete
                     if (this.preDecisionOpponentCount > 0 && !this.preDecisionAllInteractionsComplete) {
                         // Still waiting for interactions...
+                        // Safety timeout: If we've been paused for more than 5 seconds, proceed anyway
+                        if (!this.decisionSafetyTimeout) {
+                            this.decisionSafetyTimeout = this.time.delayedCall(5000, () => {
+                                console.log('Decision panel safety timeout - forcing appearance');
+                                this.preDecisionAllInteractionsComplete = true;
+                            });
+                        }
                     } else {
+                        // Clear safety timeout if set
+                        if (this.decisionSafetyTimeout) {
+                            this.decisionSafetyTimeout.remove();
+                            this.decisionSafetyTimeout = null;
+                        }
                         this.isPreFirstDecision = false;
                         this.waitingForDecision = true;
                         this.decisionTriggered = true;
@@ -474,9 +487,9 @@ class RunningScene extends Phaser.Scene {
                 // Shuffle the spawn queue so opponents from different lanes are mixed
                 const shuffledQueue = Phaser.Utils.Array.Shuffle([...spawnQueue]);
                 
-                // Spawn opponents one at a time with 1.5-2.5 second gaps between each for more natural spacing
+                // Spawn opponents one at a time with 1.2-1.8 second gaps for better mobile timing
                 shuffledQueue.forEach((lane, index) => {
-                    const spawnDelay = index * (1500 + Math.random() * 1000); // 1.5-2.5 seconds between each opponent
+                    const spawnDelay = index * (1200 + Math.random() * 600); // 1.2-1.8 seconds between each opponent
                     this.time.delayedCall(spawnDelay, () => {
                         this.spawnOpponent(lane);
                     });
