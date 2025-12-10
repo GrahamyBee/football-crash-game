@@ -1612,7 +1612,8 @@ class RunningScene extends Phaser.Scene {
         // Keep game paused during animation
         this.isRunning = false;
         
-        // ADD BONUS TO TOTAL IMMEDIATELY (before animation)
+        // Bonus was already added to totalBonusWon by BonusRoundScene's wallet animation
+        // This animation is for showing bonus added from skill moves
         this.totalBonusWon += bonusAmount;
         this.registry.set('bonusWinAmount', 0);
         

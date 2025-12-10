@@ -324,6 +324,12 @@ class BonusRoundScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
+        // Get RunningScene and add bonus to its totalBonusWon immediately
+        const runningScene = this.scene.get('RunningScene');
+        if (runningScene && runningScene.totalBonusWon !== undefined) {
+            runningScene.totalBonusWon += bonusAmount;
+        }
+        
         // Create wallet icon
         const walletContainer = this.add.container(width / 2, height / 2);
         
@@ -424,7 +430,7 @@ class BonusRoundScene extends Phaser.Scene {
     }
     
     finalizeReturn() {
-        // Clear bonus win amount and return to game
+        // Clear bonus win amount since we already added it to RunningScene's totalBonusWon
         this.registry.set('bonusWinAmount', 0);
         this.scene.stop('BonusRoundScene');
         this.scene.wake('RunningScene');
