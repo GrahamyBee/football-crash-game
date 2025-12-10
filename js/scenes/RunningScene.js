@@ -450,23 +450,35 @@ class RunningScene extends Phaser.Scene {
         if (this.waitingForDecision) {
             // Don't spawn anything while decision window is ready
         } else if (this.isPreFirstDecision && !this.preDecisionOpponentsSpawned) {
-            // PRE-FIRST DECISION: Spawn 0-4 opponents (random), one per lane max
-            const opponentCount = Math.floor(Math.random() * 5); // 0, 1, 2, 3, or 4
+            // PRE-FIRST DECISION: Spawn 0-4 lanes with opposition (random)
+            const laneCount = Math.floor(Math.random() * 5); // 0, 1, 2, 3, or 4 lanes
             
-            if (opponentCount > 0) {
+            if (laneCount > 0) {
                 // Select random lanes (shuffle and take first N)
                 const allLanes = [0, 1, 2, 3];
                 const shuffledLanes = allLanes.sort(() => Math.random() - 0.5);
-                const selectedLanes = shuffledLanes.slice(0, opponentCount);
+                const selectedLanes = shuffledLanes.slice(0, laneCount);
                 
-                // Spawn all opponents at the same time
-                selectedLanes.forEach((lane, index) => {
+                let totalOpponents = 0;
+                
+                // For each selected lane, spawn 0-3 opponents with spacing
+                selectedLanes.forEach((lane) => {
                     if (this.players[lane] && this.players[lane].active) {
-                        this.spawnOpponent(lane);
+                        const opponentsInLane = Math.floor(Math.random() * 4); // 0, 1, 2, or 3
+                        
+                        // Spawn opponents with spacing (0.4-0.8 seconds apart)
+                        for (let i = 0; i < opponentsInLane; i++) {
+                            const spawnDelay = i * (400 + Math.random() * 400); // 400-800ms spacing
+                            this.time.delayedCall(spawnDelay, () => {
+                                this.spawnOpponent(lane);
+                            });
+                        }
+                        
+                        totalOpponents += opponentsInLane;
                     }
                 });
                 
-                this.preDecisionOpponentCount = opponentCount;
+                this.preDecisionOpponentCount = totalOpponents;
             } else {
                 this.preDecisionOpponentCount = 0;
             }
@@ -744,7 +756,7 @@ class RunningScene extends Phaser.Scene {
         const dodgeText = this.add.text(x, adjustedY, message, {
             fontSize: '20px',
             fontStyle: 'bold',
-            fill: '#00ff00'
+            fill: '#FFFF00'  // Yellow for dodge messages
         }).setOrigin(0.5).setDepth(10002); // Highest z-index for text
         
         // Track this text
@@ -789,7 +801,7 @@ class RunningScene extends Phaser.Scene {
         const skillText = this.add.text(x, adjustedY, `SKILL! +£${boostAmount.toFixed(2)}`, {
             fontSize: '20px',
             fontStyle: 'bold',
-            fill: '#FFD700'
+            fill: '#00BFFF'  // Blue for boost messages
         }).setOrigin(0.5).setDepth(10002); // Highest z-index for text
         
         // Track this text

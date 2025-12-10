@@ -73,8 +73,8 @@ class BonusRoundScene extends Phaser.Scene {
             { name: 'bottom-right', x: goalCenterX + goalWidth * 0.25, y: goalCenterY + goalHeight * 0.25 }
         ];
         
-        // Cash multipliers to randomly assign (5x, 10x, 20x, 50x, 100x stake)
-        const cashMultipliers = [5, 10, 20, 50, 100];
+        // Cash multipliers to randomly assign (1x, 2x, 5x, 10x, 25x stake)
+        const cashMultipliers = [1, 2, 5, 10, 25];
         
         // Shuffle cash multipliers
         const shuffled = Phaser.Utils.Array.Shuffle([...cashMultipliers]);
