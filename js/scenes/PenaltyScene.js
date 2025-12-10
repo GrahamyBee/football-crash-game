@@ -73,8 +73,8 @@ class PenaltyScene extends Phaser.Scene {
             { name: 'bottom-right', x: goalCenterX + goalWidth * 0.25, y: goalCenterY + goalHeight * 0.25 }
         ];
         
-        // Multipliers to randomly assign
-        const multipliers = [25, 75, 50, 100, 200];
+        // Multipliers to randomly assign (of the stake, not current prize)
+        const multipliers = [1, 2, 5, 10, 25];
         
         // Shuffle multipliers
         const shuffled = Phaser.Utils.Array.Shuffle([...multipliers]);
@@ -183,16 +183,17 @@ class PenaltyScene extends Phaser.Scene {
                     goalImage
                 ).setScale(1.0).setDepth(20);
                 
-                // Calculate total win
-                const totalWin = this.currentPrize * multiplier;
+                // Calculate total win - multiplier is of the STAKE, not current prize
+                const penaltyWin = this.selectedStake * multiplier;
+                const totalWin = this.currentPrize + penaltyWin;
                 
                 // Store breakdown for OutcomeScene
-                // currentPrize already includes base multiplier + bonuses (calculated in DecisionScene)
-                const crashMultiplier = this.currentPrize / this.selectedStake; // This is the display multiplier
+                const crashMultiplier = this.currentPrize / this.selectedStake; // Crash game multiplier
                 this.registry.set('crashMultiplier', crashMultiplier);
-                this.registry.set('shootingMultiplier', multiplier); // Penalty zone multiplier
+                this.registry.set('shootingMultiplier', multiplier); // Penalty multiplier (of stake)
                 this.registry.set('crashWinAmount', this.currentPrize / 100); // Crash game winnings in pounds
-                this.registry.set('finalMultiplier', crashMultiplier * multiplier);
+                this.registry.set('penaltyWinAmount', penaltyWin / 100); // Penalty winnings in pounds
+                this.registry.set('finalMultiplier', totalWin / this.selectedStake); // Total multiplier
                 
                 // Show multiplier on ball
                 const multiplierText = this.add.text(targetX, targetY - 30, `x${multiplier}`, {
