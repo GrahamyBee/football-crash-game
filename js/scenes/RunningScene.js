@@ -753,7 +753,10 @@ class RunningScene extends Phaser.Scene {
         const perspectiveScale = player.perspectiveScale || 1.0;
         
         // **CRITICAL: Check for bonus FIRST before destroying anything**
-        if (player.hasBall) {
+        // ONLY the player with the ball (verified by hasBall flag AND ball object) can trigger bonus
+        if (player.hasBall && player.ball) {
+            console.log(`Player ${playerIndex} with ball was tackled - checking for bonus`);
+            
             // IMPORTANT: Save which player had the ball
             this.bonusRoundPlayerIndex = playerIndex;
             
@@ -770,6 +773,8 @@ class RunningScene extends Phaser.Scene {
             
             console.log('Player with ball tackled!', {
                 playerIndex: playerIndex,
+                hasBall: player.hasBall,
+                ballExists: !!player.ball,
                 forceBonus: forceBonus,
                 randomValue: randomValue,
                 bonusTriggered: bonusTriggered
@@ -786,11 +791,15 @@ class RunningScene extends Phaser.Scene {
                 return; // EXIT EARLY - don't do any destruction
             } else {
                 // No bonus - will proceed with destruction below
-                console.log('No bonus - proceeding with player destruction');
+                console.log('No bonus - proceeding with player destruction and game over');
             }
+        } else if (player.hasBall && !player.ball) {
+            // This is a data inconsistency - player has hasBall flag but no ball object
+            console.error(`ERROR: Player ${playerIndex} has hasBall=true but no ball object!`);
         }
         
         // If we reach here, no bonus was triggered - proceed with normal crash
+        console.log(`Player ${playerIndex} tackled - no bonus (hasBall: ${player.hasBall}, ballExists: ${!!player.ball})`);
         player.active = false;
         
         // Replace opponent with tackle image
