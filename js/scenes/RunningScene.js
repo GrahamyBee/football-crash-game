@@ -523,16 +523,22 @@ class RunningScene extends Phaser.Scene {
                 this.players[lane] && this.players[lane].active
             );
             
+            console.log(`PRE-DECISION: laneCount=${laneCount}, activeLanes=${activeLanes.length}`);
+            
             if (activeLanes.length > 0) {
                 // Shuffle active lanes and take first N (or all if less than N)
                 const shuffledLanes = Phaser.Utils.Array.Shuffle([...activeLanes]);
                 const selectedLanes = shuffledLanes.slice(0, Math.min(laneCount, activeLanes.length));
+                
+                console.log(`Selected ${selectedLanes.length} lanes:`, selectedLanes);
                 
                 // Build a list of all opponents to spawn with their lanes
                 const spawnQueue = [];
                 selectedLanes.forEach((lane) => {
                     // Each selected lane gets 1-3 opponents (at least 1)
                     const opponentsInLane = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
+                    
+                    console.log(`Lane ${lane} gets ${opponentsInLane} opponents`);
                     
                     for (let i = 0; i < opponentsInLane; i++) {
                         spawnQueue.push(lane);
@@ -542,10 +548,13 @@ class RunningScene extends Phaser.Scene {
                 // Add forced crash opponents for stage 0 (before first decision)
                 const stage0Crashes = this.forcedCrashSchedule.filter(c => c.stage === 0);
                 if (stage0Crashes.length > 0) {
+                    console.log(`Adding forced crashes for stage 0:`, stage0Crashes[0].players);
                     stage0Crashes[0].players.forEach(playerIndex => {
                         spawnQueue.push({ lane: playerIndex, forcedCrash: true });
                     });
                 }
+                
+                console.log(`Total pre-decision spawn queue: ${spawnQueue.length} opponents`);
                 
                 // Shuffle the spawn queue so opponents from different lanes are mixed
                 const shuffledQueue = Phaser.Utils.Array.Shuffle([...spawnQueue]);
