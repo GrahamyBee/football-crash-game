@@ -1403,7 +1403,8 @@ class RunningScene extends Phaser.Scene {
                 }
                 
                 // Safety: if we've been scrolling too long, stop
-                if (!resultProcessed && elapsed >= shotDuration + 3000) {
+                // Increased timeout to 8000ms (8 seconds) to ensure goal reaches ball
+                if (!resultProcessed && elapsed >= shotDuration + 8000) {
                     resultProcessed = true; // Mark as processed
                     scrollLoop.remove();
                     
