@@ -11,6 +11,7 @@ class RunningScene extends Phaser.Scene {
         this.selectedPlayer = this.registry.get('selectedPlayer');
         this.selectedStake = this.registry.get('selectedStake');
         this.currentMultiplier = 0;
+        this.totalBonusWon = 0; // Track total bonus money won (in pounds)
         this.activePlayers = [true, true, true, true];
         this.playerPositions = [0, 0, 0, 0];
         this.testModeEnabled = this.registry.get('testModeEnabled') || false;
@@ -76,6 +77,9 @@ class RunningScene extends Phaser.Scene {
                     player.indicator.setVisible(true);
                 }
             });
+            
+            // Make sure shooting flag is cleared
+            this.isShooting = false;
             
             // Just resume the game logic
             this.isRunning = true;
@@ -357,12 +361,14 @@ class RunningScene extends Phaser.Scene {
                 this.currentMultiplier = Math.min(this.currentMultiplier, GameConfig.MAX_MULTIPLIER);
             }
             
-            // Calculate actual cash value
+            // Calculate actual cash value (multiplier-based game value)
             const currentCashValue = (this.currentMultiplier * this.selectedStake) / 100;
             
+            // Calculate display value (includes bonus money won)
+            const displayMultiplier = this.currentMultiplier + (this.totalBonusWon * 100 / this.selectedStake);
             
-            // Update display
-            this.cashValueText.setText(this.formatCashValue(this.currentMultiplier));
+            // Update display with combined value
+            this.cashValueText.setText(this.formatCashValue(displayMultiplier));
             
             // Scroll the world (move background and opponents)
             this.scrollWorld(deltaSeconds);
@@ -1590,10 +1596,12 @@ class RunningScene extends Phaser.Scene {
         this.currentMultiplier = state.currentMultiplier;
         
         console.log('Multiplier restored:', this.currentMultiplier);
+        console.log('Total bonus won (preserved):', this.totalBonusWon);
         
-        // Update UI text
+        // Update UI text with combined value (multiplier + bonus)
         if (this.cashValueText) {
-            this.cashValueText.setText(this.formatCashValue(this.currentMultiplier));
+            const displayMultiplier = this.currentMultiplier + (this.totalBonusWon * 100 / this.selectedStake);
+            this.cashValueText.setText(this.formatCashValue(displayMultiplier));
         }
         
         // Clear saved state
@@ -1721,6 +1729,13 @@ class RunningScene extends Phaser.Scene {
                     bonusAmountText.destroy();
                     equalsText.destroy();
                     newTotalText.destroy();
+                    
+                    // Add bonus to total bonus tracker
+                    this.totalBonusWon += bonusAmount;
+                    console.log(`Total bonus won so far: £${this.totalBonusWon.toFixed(2)}`);
+                    
+                    // Clear the registry value
+                    this.registry.set('bonusWinAmount', 0);
                     
                     // Now resume the game
                     this.isRunning = true;
