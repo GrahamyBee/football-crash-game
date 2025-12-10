@@ -605,17 +605,17 @@ class RunningScene extends Phaser.Scene {
     }
     
     checkCrashes() {
-        // ONLY check collisions for the selected player (the one with the ball)
-        // Other players should not interact with opponents or receive skill boosts
-        const player = this.players[this.selectedPlayer];
-        if (!player || !player.active) return;
-        
-        const playerX = player.sprite.x;
-        const playerY = player.sprite.y;
-        
-        this.opponents[this.selectedPlayer].forEach((opponent, oppIndex) => {
-            // Only process collision if flag is 0 (not yet collided)
-            if (opponent.collisionFlag !== 0) return;
+        // Check collisions for ALL active players (so opponents get cleared)
+        // But only award skill boosts to the SELECTED player (the one with the ball)
+        this.players.forEach((player, playerIndex) => {
+            if (!player.active) return;
+            
+            const playerX = player.sprite.x;
+            const playerY = player.sprite.y;
+            
+            this.opponents[playerIndex].forEach((opponent, oppIndex) => {
+                // Only process collision if flag is 0 (not yet collided)
+                if (opponent.collisionFlag !== 0) return;
                 
                 const distance = Phaser.Math.Distance.Between(
                     playerX, playerY,
@@ -644,18 +644,24 @@ class RunningScene extends Phaser.Scene {
                     
                     if (outcome === 'tackle') {
                         // CRASH! Replace both player and opponent with static images
-                        this.crashPlayer(this.selectedPlayer, opponent);
+                        this.crashPlayer(playerIndex, opponent);
                     } else if (outcome === 'dodge') {
                         // Replace opponent with dodge image
-                        this.replaceOpponentWithStaticImage(opponent, 'opposition_dodge', this.selectedPlayer, oppIndex);
+                        this.replaceOpponentWithStaticImage(opponent, 'opposition_dodge', playerIndex, oppIndex);
                         this.showDodgeMessage(playerX, playerY, 'DODGED!');
                     } else {
-                        // SKILL! - Replace opponent with skill image and award cash boost (ONLY for selected player)
-                        this.replaceOpponentWithStaticImage(opponent, 'opposition_skill', this.selectedPlayer, oppIndex);
+                        // SKILL! - Replace opponent with skill image
+                        this.replaceOpponentWithStaticImage(opponent, 'opposition_skill', playerIndex, oppIndex);
                         
-                        const stakeInPounds = this.selectedStake / 100;
-                        this.totalBonusWon += stakeInPounds;
-                        this.showSkillBoostMessage(playerX, playerY, stakeInPounds);
+                        // ONLY award skill boost if this is the SELECTED PLAYER (with the ball)
+                        if (playerIndex === this.selectedPlayer) {
+                            const stakeInPounds = this.selectedStake / 100;
+                            this.totalBonusWon += stakeInPounds;
+                            this.showSkillBoostMessage(playerX, playerY, stakeInPounds);
+                        } else {
+                            // Other players just show dodge message
+                            this.showDodgeMessage(playerX, playerY, 'SKILL!');
+                        }
                     }
                     
                     // Track pre-decision interactions
@@ -677,6 +683,7 @@ class RunningScene extends Phaser.Scene {
                     }
                 }
             });
+        });
     }
     
     replaceOpponentWithStaticImage(opponent, imageKey, lane, oppIndex) {
