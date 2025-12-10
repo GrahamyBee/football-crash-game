@@ -39,6 +39,22 @@ class RunningScene extends Phaser.Scene {
         this.isRunning = false;
         this.hasStarted = false;
         
+        // ===== FORCED CRASH SYSTEM =====
+        // Track game number (cycles 1-4)
+        let gameCounter = this.registry.get('gameCounter') || 0;
+        gameCounter++;
+        if (gameCounter > 4) gameCounter = 1;
+        this.registry.set('gameCounter', gameCounter);
+        this.gameNumber = gameCounter;
+        
+        // Define forced crash schedule
+        // Game 1: 1 crash before first decision
+        // Game 2: 2 crashes between first and second decision
+        // Game 3: 2 crashes between second and third decision
+        // Game 4: 2 crashes between third and fourth decision
+        this.forcedCrashSchedule = this.determineForcedCrashes(this.gameNumber);
+        console.log(`Game ${this.gameNumber}: Forced crash schedule:`, this.forcedCrashSchedule);
+        
         // Wave system state
         this.isPreFirstDecision = true; // Before first decision point
         this.preDecisionOpponentsSpawned = false; // Track if pre-decision opponents spawned
@@ -412,6 +428,42 @@ class RunningScene extends Phaser.Scene {
         }
     }
     
+    determineForcedCrashes(gameNumber) {
+        // Returns object with crash schedule:
+        // { stage: 0-4, players: [array of player indices to crash] }
+        // Stage 0 = before first decision
+        // Stage 1 = between first and second decision
+        // Stage 2 = between second and third decision
+        // Stage 3 = between third and fourth decision
+        
+        const schedule = [];
+        
+        // Randomly select which players will crash (exclude selected player)
+        const availablePlayers = [0, 1, 2, 3].filter(p => p !== this.selectedPlayer);
+        const shuffled = Phaser.Utils.Array.Shuffle([...availablePlayers]);
+        
+        switch(gameNumber) {
+            case 1:
+                // 1 crash before first decision
+                schedule.push({ stage: 0, players: [shuffled[0]] });
+                break;
+            case 2:
+                // 2 crashes between first and second decision
+                schedule.push({ stage: 1, players: [shuffled[0], shuffled[1]] });
+                break;
+            case 3:
+                // 2 crashes between second and third decision
+                schedule.push({ stage: 2, players: [shuffled[0], shuffled[1]] });
+                break;
+            case 4:
+                // 2 crashes between third and fourth decision
+                schedule.push({ stage: 3, players: [shuffled[0], shuffled[1]] });
+                break;
+        }
+        
+        return schedule;
+    }
+    
     scrollWorld(deltaSeconds) {
         const moveDistance = GameConfig.RUNNING_SPEED * deltaSeconds;
         
@@ -463,44 +515,63 @@ class RunningScene extends Phaser.Scene {
         if (this.waitingForDecision) {
             // Don't spawn anything while decision window is ready
         } else if (this.isPreFirstDecision && !this.preDecisionOpponentsSpawned) {
-            // PRE-FIRST DECISION: Spawn 0-4 lanes with opposition (random)
-            const laneCount = Math.floor(Math.random() * 5); // 0, 1, 2, 3, or 4 lanes
+            // PRE-FIRST DECISION: Spawn 1-4 lanes with opposition (always at least 1)
+            const laneCount = 1 + Math.floor(Math.random() * 4); // 1, 2, 3, or 4 lanes
             
-            if (laneCount > 0) {
-                // Select random lanes (shuffle and take first N)
-                const allLanes = [0, 1, 2, 3];
-                const shuffledLanes = allLanes.sort(() => Math.random() - 0.5);
-                const selectedLanes = shuffledLanes.slice(0, laneCount);
+            // Get only active lanes (exclude crashed players)
+            const activeLanes = [0, 1, 2, 3].filter(lane => 
+                this.players[lane] && this.players[lane].active
+            );
+            
+            if (activeLanes.length > 0) {
+                // Shuffle active lanes and take first N (or all if less than N)
+                const shuffledLanes = Phaser.Utils.Array.Shuffle([...activeLanes]);
+                const selectedLanes = shuffledLanes.slice(0, Math.min(laneCount, activeLanes.length));
                 
                 // Build a list of all opponents to spawn with their lanes
                 const spawnQueue = [];
                 selectedLanes.forEach((lane) => {
-                    if (this.players[lane] && this.players[lane].active) {
-                        const opponentsInLane = Math.floor(Math.random() * 4); // 0, 1, 2, or 3
-                        
-                        for (let i = 0; i < opponentsInLane; i++) {
-                            spawnQueue.push(lane);
-                        }
+                    // Each selected lane gets 1-3 opponents (at least 1)
+                    const opponentsInLane = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
+                    
+                    for (let i = 0; i < opponentsInLane; i++) {
+                        spawnQueue.push(lane);
                     }
                 });
+                
+                // Add forced crash opponents for stage 0 (before first decision)
+                const stage0Crashes = this.forcedCrashSchedule.filter(c => c.stage === 0);
+                if (stage0Crashes.length > 0) {
+                    stage0Crashes[0].players.forEach(playerIndex => {
+                        spawnQueue.push({ lane: playerIndex, forcedCrash: true });
+                    });
+                }
                 
                 // Shuffle the spawn queue so opponents from different lanes are mixed
                 const shuffledQueue = Phaser.Utils.Array.Shuffle([...spawnQueue]);
                 
                 // Spawn opponents one at a time with 1.2-1.8 second gaps for better mobile timing
-                shuffledQueue.forEach((lane, index) => {
+                shuffledQueue.forEach((item, index) => {
                     const spawnDelay = index * (1200 + Math.random() * 600); // 1.2-1.8 seconds between each opponent
                     this.time.delayedCall(spawnDelay, () => {
-                        this.spawnOpponent(lane);
+                        // Handle both lane numbers and objects with forcedCrash flag
+                        const laneIndex = typeof item === 'object' ? item.lane : item;
+                        const isForcedCrash = typeof item === 'object' && item.forcedCrash;
+                        
+                        // Only spawn if player is still active
+                        if (this.players[laneIndex] && this.players[laneIndex].active) {
+                            this.spawnOpponent(laneIndex, false, isForcedCrash);
+                        }
                     });
                 });
                 
                 this.preDecisionOpponentCount = shuffledQueue.length;
                 this.preDecisionInteractionsRemaining = shuffledQueue.length; // Initialize interaction counter
             } else {
+                // No active players, mark as complete
                 this.preDecisionOpponentCount = 0;
                 this.preDecisionInteractionsRemaining = 0;
-                this.preDecisionAllInteractionsComplete = true; // No opponents = all complete
+                this.preDecisionAllInteractionsComplete = true;
             }
             
             this.preDecisionOpponentsSpawned = true;
@@ -562,18 +633,29 @@ class RunningScene extends Phaser.Scene {
             this.currentWaveActive = true;
             this.allWaveOpponentsGone = false;
         } else {
-            // Normal mode: Random wave size: 0-3 opponents
-            this.currentWaveCount = Math.floor(Math.random() * 4); // 0, 1, 2, or 3
+            // Normal mode: Random wave size: 1-3 opponents (always at least 1)
+            this.currentWaveCount = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
+            
+            // Check if we need to add forced crash opponents for this stage
+            // Stage 1 = after first decision, Stage 2 = after second decision, Stage 3 = after third decision
+            const currentStage = this.currentDecisionIndex; // currentDecisionIndex tracks which decision we just passed
+            const stageCrashes = this.forcedCrashSchedule.filter(c => c.stage === currentStage);
+            
+            if (stageCrashes.length > 0) {
+                // Add forced crash opponents to the wave
+                stageCrashes[0].players.forEach(playerIndex => {
+                    if (this.players[playerIndex] && this.players[playerIndex].active) {
+                        // Spawn forced crash opponent immediately
+                        this.spawnOpponent(playerIndex, false, true);
+                        this.currentWaveCount++;
+                    }
+                });
+            }
+            
             this.waveOpponentsSpawned = 0;
             this.currentWaveActive = true;
             this.allWaveOpponentsGone = false;
             this.lastOpponentSpawnTime = this.elapsedTime;
-            
-            // If wave is 0, immediately mark as complete
-            if (this.currentWaveCount === 0) {
-                this.currentWaveActive = false;
-                this.allWaveOpponentsGone = true;
-            }
         }
     }
     
@@ -591,9 +673,9 @@ class RunningScene extends Phaser.Scene {
         this.waveOpponentsSpawned++;
     }
     
-    spawnOpponent(lane, synchronizedSpawn = false) {
-        // Don't spawn too many opponents (unless synchronized Force Bonus spawn)
-        if (!synchronizedSpawn && this.opponents[lane].length >= 2) return;
+    spawnOpponent(lane, synchronizedSpawn = false, forcedCrash = false) {
+        // Don't spawn too many opponents (unless synchronized Force Bonus spawn or forced crash)
+        if (!synchronizedSpawn && !forcedCrash && this.opponents[lane].length >= 2) return;
         
         const width = this.cameras.main.width;
         
@@ -601,11 +683,16 @@ class RunningScene extends Phaser.Scene {
         const horizontalStagger = [240, 160, 80, 0]; // Lane 1 furthest back, Lane 4 most forward (80px gaps each)
         
         // For synchronized spawns (Force Bonus), spawn at fixed distance so all collide together
+        // For forced crashes, spawn very close to guarantee collision
         // For pre-decision opponents, spawn so all interactions happen within 3 seconds
         // Player is at x=200, opponents move at 150px/s (1.5x world speed)
         // Spawn at various distances: 375px = 2.5s, 300px = 2.0s, 225px = 1.5s travel time
         let x;
-        if (synchronizedSpawn) {
+        if (forcedCrash) {
+            // Forced crash: Spawn very close (150px = 1.0 second, guaranteed collision)
+            const distance = 150;
+            x = 200 + horizontalStagger[lane] + distance;
+        } else if (synchronizedSpawn) {
             // Force Bonus: All opponents spawn at same distance (300px = 2.0 seconds travel time)
             const distance = 300;
             x = 200 + horizontalStagger[lane] + distance;
