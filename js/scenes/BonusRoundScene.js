@@ -323,6 +323,129 @@ class BonusRoundScene extends Phaser.Scene {
     returnToGame() {
         console.log('BonusRoundScene - Returning to game...');
         
+        // Check if there was a bonus win to display
+        const bonusWinAmount = this.registry.get('bonusWinAmount');
+        
+        if (bonusWinAmount && bonusWinAmount > 0) {
+            // Show wallet animation with bonus going into wallet
+            this.showWalletAnimation(bonusWinAmount);
+        } else {
+            // No bonus won, return immediately
+            this.finalizeReturn();
+        }
+    }
+    
+    showWalletAnimation(bonusAmount) {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        console.log('Showing wallet animation for £' + bonusAmount.toFixed(2));
+        
+        // Create wallet icon (using a simple container with shapes)
+        const walletContainer = this.add.container(width / 2, height / 2);
+        
+        // Wallet background (rounded rectangle simulation)
+        const walletBg = this.add.rectangle(0, 0, 150, 100, 0x8B4513);
+        const walletTop = this.add.rectangle(0, -30, 150, 20, 0x654321);
+        
+        // Wallet symbol ($)
+        const walletSymbol = this.add.text(0, 0, '£', {
+            fontSize: '60px',
+            fontStyle: 'bold',
+            fill: '#FFD700'
+        }).setOrigin(0.5);
+        
+        walletContainer.add([walletBg, walletTop, walletSymbol]);
+        walletContainer.setScale(0);
+        walletContainer.setDepth(200);
+        
+        // Bonus amount text floating above
+        const bonusText = this.add.text(width / 2, height / 2 - 150, `+£${bonusAmount.toFixed(2)}`, {
+            fontSize: '48px',
+            fontStyle: 'bold',
+            fill: '#00FF00',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(200).setAlpha(0);
+        
+        const addingText = this.add.text(width / 2, height / 2 + 100, 'ADDING TO WALLET...', {
+            fontSize: '32px',
+            fontStyle: 'bold',
+            fill: '#FFFFFF',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(200).setAlpha(0);
+        
+        // Animation sequence
+        // 1. Scale up wallet
+        this.tweens.add({
+            targets: walletContainer,
+            scale: 1.2,
+            duration: 400,
+            ease: 'Back.easeOut'
+        });
+        
+        // 2. Fade in bonus text
+        this.tweens.add({
+            targets: bonusText,
+            alpha: 1,
+            duration: 300,
+            delay: 200,
+            ease: 'Power2'
+        });
+        
+        // 3. Move bonus text down into wallet
+        this.tweens.add({
+            targets: bonusText,
+            y: height / 2,
+            scale: 0.5,
+            alpha: 0,
+            duration: 800,
+            delay: 800,
+            ease: 'Power2.easeIn'
+        });
+        
+        // 4. Pulse wallet
+        this.tweens.add({
+            targets: walletContainer,
+            scale: 1.4,
+            duration: 200,
+            delay: 1400,
+            yoyo: true,
+            ease: 'Power2'
+        });
+        
+        // 5. Show "Adding to wallet" text
+        this.tweens.add({
+            targets: addingText,
+            alpha: 1,
+            duration: 300,
+            delay: 1600,
+            ease: 'Power2'
+        });
+        
+        // 6. After 3 seconds total, fade everything out and return to game
+        this.time.delayedCall(3000, () => {
+            this.tweens.add({
+                targets: [walletContainer, bonusText, addingText],
+                alpha: 0,
+                duration: 400,
+                onComplete: () => {
+                    walletContainer.destroy();
+                    bonusText.destroy();
+                    addingText.destroy();
+                    this.finalizeReturn();
+                }
+            });
+        });
+    }
+    
+    finalizeReturn() {
+        console.log('Finalizing return to RunningScene...');
+        
+        // Clear the bonus win amount
+        this.registry.set('bonusWinAmount', 0);
+        
         // Stop this scene and wake the RunningScene (restoration will happen in wake event handler)
         this.scene.stop('BonusRoundScene');
         console.log('BonusRoundScene stopped, waking RunningScene...');

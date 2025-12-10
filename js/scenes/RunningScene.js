@@ -755,21 +755,14 @@ class RunningScene extends Phaser.Scene {
     }
     
     showSkillBoostMessage(x, y, boostAmount) {
-        // Main "SKILL!" text
-        const skillText = this.add.text(x, y - 40, 'SKILL!', {
+        // Main "SKILL!" text with amount
+        const skillText = this.add.text(x, y - 40, `SKILL! +£${boostAmount.toFixed(2)}`, {
             fontSize: '20px',
             fontStyle: 'bold',
             fill: '#FFD700'
         }).setOrigin(0.5).setDepth(10001);
         
-        // Cash boost text below
-        const boostText = this.add.text(x, y - 15, `+£${boostAmount.toFixed(2)}`, {
-            fontSize: '16px',
-            fontStyle: 'bold',
-            fill: '#00FF00'
-        }).setOrigin(0.5).setDepth(10001);
-        
-        // Animate both texts
+        // Animate skill text
         this.tweens.add({
             targets: skillText,
             y: skillText.y - 50,
@@ -778,12 +771,26 @@ class RunningScene extends Phaser.Scene {
             onComplete: () => skillText.destroy()
         });
         
+        // Show floating indicator in top UI area (near cash display)
+        const width = this.cameras.main.width;
+        
+        // Position near the cash value display (right side of screen)
+        const uiIndicator = this.add.text(width - 50, 60, `+£${boostAmount.toFixed(2)}`, {
+            fontSize: '24px',
+            fontStyle: 'bold',
+            fill: '#00FF00',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(1, 0).setDepth(10001).setScrollFactor(0);
+        
+        // Animate UI indicator - float up and fade
         this.tweens.add({
-            targets: boostText,
-            y: boostText.y - 50,
+            targets: uiIndicator,
+            y: 30,
             alpha: 0,
-            duration: 1500,
-            onComplete: () => boostText.destroy()
+            duration: 2000,
+            ease: 'Power2.easeOut',
+            onComplete: () => uiIndicator.destroy()
         });
     }
     
@@ -837,10 +844,18 @@ class RunningScene extends Phaser.Scene {
                     const oppY = opponent.y;
                     const oppScale = opponent.perspectiveScale || perspectiveScale;
                     
-                    // Stop and destroy opponent sprite
-                    if (opponent.isAnimated) {
-                        opponent.stop();
+                    console.log('Replacing opponent with tackle animation', {
+                        oppX, oppY, oppScale,
+                        isAnimated: opponent.isAnimated,
+                        hasAnims: !!opponent.anims
+                    });
+                    
+                    // Stop animation if it's an animated sprite
+                    if (opponent.anims && opponent.anims.isPlaying) {
+                        opponent.anims.stop();
                     }
+                    
+                    // Destroy opponent sprite
                     opponent.destroy();
                     
                     // Create tackle static image with perspective scaling
@@ -848,9 +863,12 @@ class RunningScene extends Phaser.Scene {
                     tackleImage.setScale(0.5 * oppScale);
                     tackleImage.setDepth(10000);
                     
+                    console.log('Tackle image created at', oppX, oppY, 'with scale', 0.5 * oppScale);
+                    
                     // Fade out tackle image after delay
                     this.time.delayedCall(1500, () => {
                         if (tackleImage && tackleImage.active) {
+                            console.log('Destroying tackle image');
                             tackleImage.destroy();
                         }
                     });
