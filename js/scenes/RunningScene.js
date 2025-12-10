@@ -459,26 +459,30 @@ class RunningScene extends Phaser.Scene {
                 const shuffledLanes = allLanes.sort(() => Math.random() - 0.5);
                 const selectedLanes = shuffledLanes.slice(0, laneCount);
                 
-                let totalOpponents = 0;
-                
-                // For each selected lane, spawn 0-3 opponents with spacing
+                // Build a list of all opponents to spawn with their lanes
+                const spawnQueue = [];
                 selectedLanes.forEach((lane) => {
                     if (this.players[lane] && this.players[lane].active) {
                         const opponentsInLane = Math.floor(Math.random() * 4); // 0, 1, 2, or 3
                         
-                        // Spawn opponents with spacing (0.4-0.8 seconds apart)
                         for (let i = 0; i < opponentsInLane; i++) {
-                            const spawnDelay = i * (400 + Math.random() * 400); // 400-800ms spacing
-                            this.time.delayedCall(spawnDelay, () => {
-                                this.spawnOpponent(lane);
-                            });
+                            spawnQueue.push(lane);
                         }
-                        
-                        totalOpponents += opponentsInLane;
                     }
                 });
                 
-                this.preDecisionOpponentCount = totalOpponents;
+                // Shuffle the spawn queue so opponents from different lanes are mixed
+                const shuffledQueue = Phaser.Utils.Array.Shuffle([...spawnQueue]);
+                
+                // Spawn opponents one at a time with 1-1.5 second gaps between each
+                shuffledQueue.forEach((lane, index) => {
+                    const spawnDelay = index * (1000 + Math.random() * 500); // 1.0-1.5 seconds between each opponent
+                    this.time.delayedCall(spawnDelay, () => {
+                        this.spawnOpponent(lane);
+                    });
+                });
+                
+                this.preDecisionOpponentCount = shuffledQueue.length;
             } else {
                 this.preDecisionOpponentCount = 0;
             }
