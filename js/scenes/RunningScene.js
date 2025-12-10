@@ -16,6 +16,9 @@ class RunningScene extends Phaser.Scene {
         this.playerPositions = [0, 0, 0, 0];
         this.testModeEnabled = this.registry.get('testModeEnabled') || false;
         
+        // Track active text messages to prevent overlapping
+        this.activeTextMessages = [];
+        
         // Decision thresholds based on MULTIPLES of stake
         // 3x (3s), 8x (+5x/5s), 13x (+5x/5s), 20x (+7x/7s)
         const stakeInPounds = this.selectedStake / 100;
@@ -718,28 +721,80 @@ class RunningScene extends Phaser.Scene {
             message = messages[Math.floor(Math.random() * messages.length)];
         }
         
-        const dodgeText = this.add.text(x, y - 40, message, {
+        // Check for overlapping text and adjust Y position
+        let adjustedY = y - 40;
+        const overlapThreshold = 50; // Minimum distance between text messages
+        
+        // Remove destroyed text from tracking array
+        this.activeTextMessages = this.activeTextMessages.filter(textObj => textObj && !textObj.text._destroyed);
+        
+        // Check for overlap with existing text
+        let hasOverlap = true;
+        while (hasOverlap) {
+            hasOverlap = false;
+            for (const textObj of this.activeTextMessages) {
+                const distance = Phaser.Math.Distance.Between(x, adjustedY, textObj.x, textObj.y);
+                if (distance < overlapThreshold) {
+                    adjustedY -= 30; // Move up to avoid overlap
+                    hasOverlap = true;
+                    break;
+                }
+            }
+        }
+        
+        const dodgeText = this.add.text(x, adjustedY, message, {
             fontSize: '20px',
             fontStyle: 'bold',
             fill: '#00ff00'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(10002); // Highest z-index for text
+        
+        // Track this text
+        this.activeTextMessages.push({ text: dodgeText, x: x, y: adjustedY });
         
         this.tweens.add({
             targets: dodgeText,
             y: dodgeText.y - 50,
             alpha: 0,
             duration: 1500,
-            onComplete: () => dodgeText.destroy()
+            onComplete: () => {
+                // Remove from tracking when destroyed
+                this.activeTextMessages = this.activeTextMessages.filter(textObj => textObj.text !== dodgeText);
+                dodgeText.destroy();
+            }
         });
     }
     
     showSkillBoostMessage(x, y, boostAmount) {
+        // Check for overlapping text and adjust Y position
+        let adjustedY = y - 40;
+        const overlapThreshold = 50; // Minimum distance between text messages
+        
+        // Remove destroyed text from tracking array
+        this.activeTextMessages = this.activeTextMessages.filter(textObj => textObj && !textObj.text._destroyed);
+        
+        // Check for overlap with existing text
+        let hasOverlap = true;
+        while (hasOverlap) {
+            hasOverlap = false;
+            for (const textObj of this.activeTextMessages) {
+                const distance = Phaser.Math.Distance.Between(x, adjustedY, textObj.x, textObj.y);
+                if (distance < overlapThreshold) {
+                    adjustedY -= 30; // Move up to avoid overlap
+                    hasOverlap = true;
+                    break;
+                }
+            }
+        }
+        
         // Main "SKILL!" text with amount
-        const skillText = this.add.text(x, y - 40, `SKILL! +£${boostAmount.toFixed(2)}`, {
+        const skillText = this.add.text(x, adjustedY, `SKILL! +£${boostAmount.toFixed(2)}`, {
             fontSize: '20px',
             fontStyle: 'bold',
             fill: '#FFD700'
-        }).setOrigin(0.5).setDepth(10001);
+        }).setOrigin(0.5).setDepth(10002); // Highest z-index for text
+        
+        // Track this text
+        this.activeTextMessages.push({ text: skillText, x: x, y: adjustedY });
         
         // Animate skill text
         this.tweens.add({
@@ -747,7 +802,11 @@ class RunningScene extends Phaser.Scene {
             y: skillText.y - 50,
             alpha: 0,
             duration: 1500,
-            onComplete: () => skillText.destroy()
+            onComplete: () => {
+                // Remove from tracking when destroyed
+                this.activeTextMessages = this.activeTextMessages.filter(textObj => textObj.text !== skillText);
+                skillText.destroy();
+            }
         });
         
         // Show floating indicator in top UI area (near cash display)
@@ -760,7 +819,7 @@ class RunningScene extends Phaser.Scene {
             fill: '#00FF00',
             stroke: '#000000',
             strokeThickness: 3
-        }).setOrigin(1, 0).setDepth(10001).setScrollFactor(0);
+        }).setOrigin(1, 0).setDepth(10002).setScrollFactor(0); // Highest z-index for text
         
         // Animate UI indicator - float up and fade
         this.tweens.add({
@@ -1656,9 +1715,11 @@ class RunningScene extends Phaser.Scene {
             });
         });
         
-        // Resume game immediately
-        this.isRunning = true;
-        this.multiplierPaused = false;
+        // Add 2-second delay before resuming gameplay
+        this.time.delayedCall(2000, () => {
+            this.isRunning = true;
+            this.multiplierPaused = false;
+        });
     }
     
     showBonusAddedAnimation(bonusAmount) {
