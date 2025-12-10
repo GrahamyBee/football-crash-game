@@ -483,8 +483,11 @@ class RunningScene extends Phaser.Scene {
                 });
                 
                 this.preDecisionOpponentCount = shuffledQueue.length;
+                this.preDecisionInteractionsRemaining = shuffledQueue.length; // Initialize interaction counter
             } else {
                 this.preDecisionOpponentCount = 0;
+                this.preDecisionInteractionsRemaining = 0;
+                this.preDecisionAllInteractionsComplete = true; // No opponents = all complete
             }
             
             this.preDecisionOpponentsSpawned = true;
@@ -683,16 +686,11 @@ class RunningScene extends Phaser.Scene {
                     }
                     
                     // Track pre-decision interactions
-                    if (this.isPreFirstDecision && this.preDecisionOpponentsSpawned) {
-                        if (this.preDecisionInteractionsRemaining === 0) {
-                            // First interaction - set counter
-                            this.preDecisionInteractionsRemaining = this.preDecisionOpponentCount;
-                        }
-                        
+                    if (this.isPreFirstDecision && this.preDecisionOpponentsSpawned && this.preDecisionInteractionsRemaining > 0) {
                         // Decrement interaction counter
                         this.preDecisionInteractionsRemaining--;
                         
-                        // If all interactions complete, wait 2 seconds
+                        // If all interactions complete, wait 2 seconds before allowing decision
                         if (this.preDecisionInteractionsRemaining === 0) {
                             this.time.delayedCall(2000, () => {
                                 this.preDecisionAllInteractionsComplete = true;
