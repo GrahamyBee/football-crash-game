@@ -52,10 +52,12 @@ class RunningScene extends Phaser.Scene {
         
         // Set up scene wake handler for bonus round returns (using wake instead of resume)
         this.events.on('wake', () => {
-            console.log('RunningScene woken - restoring game state');
-            if (this.savedGameState) {
-                this.restoreGameState();
-            }
+            console.log('RunningScene woken - simply resuming gameplay');
+            // No need to restore sprites - scene.sleep() preserves everything!
+            // Just resume the game logic
+            this.isRunning = true;
+            this.multiplierPaused = false;
+            console.log('Game resumed after bonus round');
         });
         
         // Create pitch
@@ -1513,59 +1515,18 @@ class RunningScene extends Phaser.Scene {
     }
     
     saveGameState() {
-        console.log('Saving game state before bonus round...');
+        console.log('Saving minimal game state before bonus round...');
         
-        // Check if players array exists
-        if (!this.players || !Array.isArray(this.players)) {
-            console.error('ERROR: this.players is undefined or not an array!', this.players);
-            console.log('Scene state:', {
-                sceneKey: this.scene.key,
-                sceneActive: this.scene.isActive(),
-                playersExists: !!this.players,
-                playersType: typeof this.players
-            });
-            return;
-        }
+        // Since scene.sleep() preserves all display objects, we only need to save:
+        // - Which player had the ball (bonusRoundPlayerIndex is already set)
+        // - Multiplier value
         
-        // Save player positions and states BEFORE any destruction
-        const playerStates = this.players.map((player, index) => ({
-            x: player.sprite ? player.sprite.x : player.fixedY,
-            y: player.fixedY, // Use fixedY as it never changes
-            active: player.active,
-            lane: player.lane,
-            perspectiveScale: player.perspectiveScale,
-            isBonusPlayer: (index === this.bonusRoundPlayerIndex) // Mark the bonus player
-        }));
-        
-        // Save opposition positions and states (except the one that caused the tackle)
-        // opponents is an array of arrays (one per lane)
-        const oppositionStates = this.opponents ? this.opponents.map(laneOpponents => 
-            laneOpponents.map(opp => ({
-                x: opp.x,
-                y: opp.y,
-                lane: opp.lane,
-                interacted: opp.interacted || false,
-                removed: opp === this.lastTackler // Mark tackler for removal
-            }))
-        ) : [];
-        
-        console.log('Opposition states saved:', oppositionStates);
-        
-        // Save game progress
         this.savedGameState = {
-            players: playerStates,
-            opposition: oppositionStates,
-            totalScrolled: this.totalScrolled || 0,
-            backgroundX: this.background ? this.background.tilePositionX : 0,
-            cameraScrollX: this.cameraScrollX || 0,
-            currentMultiplier: this.currentMultiplier,
-            isRunning: this.isRunning,
-            selectedPlayer: this.selectedPlayer,
-            waveOpponentsSpawned: this.waveOpponentsSpawned,
-            currentWaveCount: this.currentWaveCount
+            bonusPlayerIndex: this.bonusRoundPlayerIndex,
+            currentMultiplier: this.currentMultiplier
         };
         
-        console.log('Game state saved:', this.savedGameState);
+        console.log('Minimal state saved:', this.savedGameState);
     }
     
     restoreGameState() {
@@ -1574,222 +1535,34 @@ class RunningScene extends Phaser.Scene {
             return;
         }
         
-        console.log('=== RESTORING GAME STATE AFTER BONUS ROUND ===');
+        console.log('=== SIMPLE RESTORE - No sprite manipulation needed ===');
+        console.log('scene.sleep() preserved all display objects!');
         
         const state = this.savedGameState;
         
-        // STEP 1: Restore each player
-        this.players.forEach((player, index) => {
-            const savedState = state.players[index];
-            
-            console.log(`\n--- Player ${index} ---`);
-            console.log('Saved state:', { 
-                active: savedState.active, 
-                isBonusPlayer: savedState.isBonusPlayer,
-                lane: savedState.lane
-            });
-            
-            // Clean up any existing sprites/balls/indicators first
-            if (player.sprite && player.sprite.destroy) {
-                player.sprite.destroy();
-            }
-            if (player.ball && player.ball.destroy) {
-                player.ball.destroy();
-            }
-            if (player.ballTween) {
-                player.ballTween.stop();
-            }
-            if (player.indicator && player.indicator.destroy) {
-                player.indicator.destroy();
-            }
-            
-            // Restore active players and bonus player
-            if (savedState.active || savedState.isBonusPlayer) {
-                console.log(`→ RECREATING player ${index}`);
-                
-                // Use horizontal stagger to get correct X position
-                const horizontalStagger = [240, 160, 80, 0];
-                const baseX = 200; // Players start at x=200
-                const x = baseX + horizontalStagger[savedState.lane];
-                const y = savedState.y;
-                
-                // Create sprite
-                const spriteKey = `footballer${index + 1}`;
-                const animKey = `run${index + 1}`;
-                
-                if (this.textures.exists(spriteKey) && this.anims.exists(animKey)) {
-                    const newSprite = this.add.sprite(x, y, spriteKey);
-                    newSprite.setScale(0.5 * savedState.perspectiveScale);
-                    newSprite.setDepth(10000);
-                    newSprite.play(animKey);
-                    player.sprite = newSprite;
-                    console.log(`→ Created animated sprite at (${x}, ${y})`);
-                } else {
-                    const newSprite = this.add.circle(x, y, 40 * savedState.perspectiveScale, GameConfig.PLAYER_COLORS[index]);
-                    newSprite.setStrokeStyle(2, 0xffffff);
-                    newSprite.setDepth(10000);
-                    player.sprite = newSprite;
-                    console.log(`→ Created circle sprite at (${x}, ${y})`);
-                }
-                
-                player.active = true;
-                
-                // If this is the bonus player, give them the ball
-                if (savedState.isBonusPlayer) {
-                    console.log(`→ RECREATING ball for bonus player ${index}`);
-                    
-                    const offsetX = 47 * savedState.perspectiveScale;
-                    const offsetY = 40 * savedState.perspectiveScale;
-                    const ball = this.add.image(x + offsetX, y + offsetY, 'football');
-                    ball.setScale(0.08 * savedState.perspectiveScale);
-                    ball.setDepth(10002);
-                    
-                    player.ball = ball;
-                    player.sprite.ball = ball;
-                    player.hasBall = true;
-                    
-                    // Create rotation tween
-                    player.ballTween = this.tweens.add({
-                        targets: ball,
-                        angle: 360,
-                        duration: 1000,
-                        repeat: -1,
-                        ease: 'Linear'
-                    });
-                    
-                    console.log(`→ Created ball at (${ball.x}, ${ball.y})`);
-                    
-                    // Create indicator
-                    console.log(`→ RECREATING indicator for bonus player ${index}`);
-                    
-                    const indicatorOffsetY = 80 * savedState.perspectiveScale;
-                    const indicatorFontSize = Math.floor(20 * savedState.perspectiveScale);
-                    const indicator = this.add.text(x, y - indicatorOffsetY, 'YOU', {
-                        fontSize: `${indicatorFontSize}px`,
-                        fontStyle: 'bold',
-                        fill: '#ffff00'
-                    }).setOrigin(0.5).setDepth(10001);
-                    
-                    player.indicator = indicator;
-                    player.sprite.indicator = indicator;
-                    console.log(`→ Created indicator`);
-                } else {
-                    player.hasBall = false;
-                    player.ball = null;
-                    player.indicator = null;
-                }
-            } else {
-                console.log(`→ SKIPPING - player was inactive`);
-                player.active = false;
-                player.hasBall = false;
-                player.ball = null;
-                player.indicator = null;
-            }
-        });
-        
-        // Restore opposition (excluding removed tackler)
-        // opponents is an array of arrays (one per lane)
-        if (this.opponents && state.opposition) {
-            state.opposition.forEach((laneOpponents, laneIndex) => {
-                // Clear current lane opponents
-                if (this.opponents[laneIndex]) {
-                    this.opponents[laneIndex].forEach(opp => {
-                        if (!opp.removed) {
-                            opp.destroy();
-                        }
-                    });
-                    this.opponents[laneIndex] = [];
-                }
-                
-                // Restore saved opponents (except removed ones)
-                laneOpponents.forEach(oppState => {
-                    if (!oppState.removed) {
-                        // Re-create opponent at saved position
-                        // Note: This is simplified - may need more complex recreation
-                        console.log('Would restore opponent at:', oppState);
-                    }
-                });
-            });
-        }
-        
-        // Restore game progress
-        this.totalScrolled = state.totalScrolled;
-        if (this.background) {
-            this.background.tilePositionX = state.backgroundX;
-            this.background.setVisible(true);
-        }
-        
-        // Restore background tiles if they exist
-        if (this.backgroundTiles && this.backgroundTiles.length > 0) {
-            this.backgroundTiles.forEach(tile => {
-                if (tile && tile.setVisible) {
-                    tile.setVisible(true);
-                }
-            });
-        }
-        
-        this.cameraScrollX = state.cameraScrollX || 0;
-        
-        // Restore camera scroll position
-        this.cameras.main.scrollX = this.cameraScrollX;
-        console.log('Camera scroll restored to:', this.cameraScrollX);
-        
+        // Just restore the multiplier value
+        // Everything else (sprites, positions, etc.) was preserved by scene.sleep()
         this.currentMultiplier = state.currentMultiplier;
-        this.waveOpponentsSpawned = state.waveOpponentsSpawned;
-        this.currentWaveCount = state.currentWaveCount;
         
-        // Force display list depth sort to ensure proper rendering
-        console.log('\n=== FINALIZING RESTORATION ===');
-        this.sys.displayList.depthSort();
+        console.log('Multiplier restored:', this.currentMultiplier);
         
-        // Ensure UI elements are visible and properly set
+        // Update UI text
         if (this.cashValueText) {
-            this.cashValueText.setVisible(true);
-            this.cashValueText.setAlpha(1);
             this.cashValueText.setText(this.formatCashValue(this.currentMultiplier));
         }
         
-        if (this.background) {
-            this.background.setVisible(true);
-            this.background.setAlpha(1);
-        }
-        
-        // Make sure pitch/lanes are visible
-        if (this.pitchBg) {
-            this.pitchBg.setVisible(true);
-        }
-        
-        console.log('UI elements restored');
-        
-        this.cameras.main.flash(1, 0, 0, 0, true); // Invisible flash to force render refresh
-        
-        // Clear saved state and bonus round player index
+        // Clear saved state
         this.savedGameState = null;
-        this.bonusRoundPlayerIndex = undefined;
         
-        console.log('Game state restored, resuming gameplay...', {
-            multiplier: this.currentMultiplier,
-            totalScrolled: this.totalScrolled,
-            cameraScrollX: this.cameraScrollX,
-            activePlayers: this.players.filter(p => p.active).length,
-            playerPositions: this.players.map((p, i) => {
-                if (p.sprite && p.sprite.x !== undefined) {
-                    return { index: i, x: p.sprite.x, y: p.sprite.y, visible: p.sprite.visible, hasBall: p.hasBall, ballVisible: p.ball ? p.ball.visible : 'no ball' };
-                } else {
-                    return { index: i, status: 'no sprite' };
-                }
-            })
-        });
-        
-        // Show bonus addition animation before resuming
+        // Show bonus addition animation if won
         const bonusWinAmount = this.registry.get('bonusWinAmount') || 0;
         if (bonusWinAmount > 0) {
             this.showBonusAddedAnimation(bonusWinAmount);
         } else {
-            // Resume immediately if no bonus
+            // Resume immediately if no bonus won
             this.isRunning = true;
             this.multiplierPaused = false;
-            console.log('isRunning set to true, game should continue');
+            console.log('No bonus won - resuming game immediately');
         }
     }
     
