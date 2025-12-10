@@ -474,9 +474,9 @@ class RunningScene extends Phaser.Scene {
                 // Shuffle the spawn queue so opponents from different lanes are mixed
                 const shuffledQueue = Phaser.Utils.Array.Shuffle([...spawnQueue]);
                 
-                // Spawn opponents one at a time with 1-1.5 second gaps between each
+                // Spawn opponents one at a time with 1.5-2.5 second gaps between each for more natural spacing
                 shuffledQueue.forEach((lane, index) => {
-                    const spawnDelay = index * (1000 + Math.random() * 500); // 1.0-1.5 seconds between each opponent
+                    const spawnDelay = index * (1500 + Math.random() * 1000); // 1.5-2.5 seconds between each opponent
                     this.time.delayedCall(spawnDelay, () => {
                         this.spawnOpponent(lane);
                     });
