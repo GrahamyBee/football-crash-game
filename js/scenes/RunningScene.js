@@ -63,10 +63,9 @@ class RunningScene extends Phaser.Scene {
                 if (player.indicator) player.indicator.setVisible(true);
             });
             
-            // Clear shooting flag and resume game
+            // Clear shooting flag but DON'T resume game yet
             this.isShooting = false;
-            this.isRunning = true;
-            this.multiplierPaused = false;
+            // isRunning and multiplierPaused will be handled by restoreGameState
             
             // Restore game state for bonus animation
             if (this.savedGameState) {

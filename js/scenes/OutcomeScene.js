@@ -69,13 +69,8 @@ class OutcomeScene extends Phaser.Scene {
             
             let currentY = panelY - 90;
             
-            // Show crash game amount
-            this.add.text(panelX, currentY, 'Crash Game:', {
-                fontSize: '22px',
-                fill: '#ffffff'
-            }).setOrigin(0.5);
-            
-            this.add.text(panelX, currentY + 30, `£${this.crashWinAmount.toFixed(2)}`, {
+            // Show crash game amount (without label to save space)
+            this.add.text(panelX, currentY, `£${this.crashWinAmount.toFixed(2)}`, {
                 fontSize: '32px',
                 fontStyle: 'bold',
                 fill: '#FFD700',
@@ -83,7 +78,7 @@ class OutcomeScene extends Phaser.Scene {
                 strokeThickness: 4
             }).setOrigin(0.5);
             
-            currentY += 70;
+            currentY += 50;
             
             // Show bonus round winnings if any
             if (bonusWinAmount > 0) {
