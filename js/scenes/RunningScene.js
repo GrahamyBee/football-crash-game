@@ -1715,11 +1715,9 @@ class RunningScene extends Phaser.Scene {
             });
         });
         
-        // Add 2-second delay before resuming gameplay
-        this.time.delayedCall(2000, () => {
-            this.isRunning = true;
-            this.multiplierPaused = false;
-        });
+        // Resume game immediately (2-second pause already handled in BonusRoundScene)
+        this.isRunning = true;
+        this.multiplierPaused = false;
     }
     
     showBonusAddedAnimation(bonusAmount) {
