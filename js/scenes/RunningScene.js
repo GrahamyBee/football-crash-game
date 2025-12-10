@@ -577,7 +577,8 @@ class RunningScene extends Phaser.Scene {
             this.preDecisionOpponentsSpawned = true;
         } else if (!this.isPreFirstDecision && !this.currentWaveActive && !this.waveSpawnedThisSection) {
             // WAVE SYSTEM: After first decision
-            // Only start new wave if no wave has been spawned for this decision section yet
+            // Start new wave (waves spawn continuously)
+            console.log(`Starting new wave at decision index ${this.currentDecisionIndex}, multiplier ${this.currentMultiplier.toFixed(2)}`);
             this.startNewWave();
             this.waveSpawnedThisSection = true; // Mark that a wave has been spawned for this section
         } else if (this.currentWaveActive && this.waveOpponentsSpawned < this.currentWaveCount) {
@@ -607,6 +608,7 @@ class RunningScene extends Phaser.Scene {
         if (this.currentWaveActive && this.waveOpponentsSpawned === this.currentWaveCount) {
             const totalOpponents = this.opponents.reduce((sum, lane) => sum + lane.length, 0);
             if (totalOpponents === 0) {
+                console.log(`Wave complete at multiplier ${this.currentMultiplier.toFixed(2)}, allowing new wave`);
                 this.currentWaveActive = false;
                 this.allWaveOpponentsGone = true;
                 this.waveSpawnedThisSection = false; // Allow new wave to spawn
@@ -1732,6 +1734,7 @@ class RunningScene extends Phaser.Scene {
     }
     
     resumeRunning() {
+        console.log(`=== RESUMING after decision ${this.currentDecisionIndex}, multiplier ${this.currentMultiplier.toFixed(2)} ===`);
         this.isRunning = true;
         this.waitingForDecision = false; // Allow spawning again
         this.decisionTriggered = false; // Reset for next decision
@@ -1748,6 +1751,7 @@ class RunningScene extends Phaser.Scene {
         this.waveOpponentsSpawned = 0;
         this.currentWaveCount = 0;
         this.waveSpawnedThisSection = false; // Reset flag for new decision section
+        console.log(`Wave state reset, ready for new waves in section ${this.currentDecisionIndex}`);
     }
     
     saveGameState() {
