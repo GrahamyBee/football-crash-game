@@ -672,9 +672,17 @@ class RunningScene extends Phaser.Scene {
                         this.replaceOpponentWithStaticImage(opponent, 'opposition_dodge', playerIndex, oppIndex);
                         this.showDodgeMessage(playerX, playerY, 'DODGED!');
                     } else {
-                        // Replace opponent with skill image
+                        // SKILL! - Replace opponent with skill image
                         this.replaceOpponentWithStaticImage(opponent, 'opposition_skill', playerIndex, oppIndex);
-                        this.showDodgeMessage(playerX, playerY, 'SKILL!');
+                        
+                        // Award cash boost equal to stake value (in pounds)
+                        const stakeInPounds = this.selectedStake / 100;
+                        this.totalBonusWon += stakeInPounds;
+                        
+                        // Show skill message with boost indicator
+                        this.showSkillBoostMessage(playerX, playerY, stakeInPounds);
+                        
+                        console.log(`SKILL! Cash boost: £${stakeInPounds.toFixed(2)}, Total bonus: £${this.totalBonusWon.toFixed(2)}`);
                     }
                     
                     // Track pre-decision interactions
@@ -746,6 +754,39 @@ class RunningScene extends Phaser.Scene {
         });
     }
     
+    showSkillBoostMessage(x, y, boostAmount) {
+        // Main "SKILL!" text
+        const skillText = this.add.text(x, y - 40, 'SKILL!', {
+            fontSize: '20px',
+            fontStyle: 'bold',
+            fill: '#FFD700'
+        }).setOrigin(0.5).setDepth(10001);
+        
+        // Cash boost text below
+        const boostText = this.add.text(x, y - 15, `+£${boostAmount.toFixed(2)}`, {
+            fontSize: '16px',
+            fontStyle: 'bold',
+            fill: '#00FF00'
+        }).setOrigin(0.5).setDepth(10001);
+        
+        // Animate both texts
+        this.tweens.add({
+            targets: skillText,
+            y: skillText.y - 50,
+            alpha: 0,
+            duration: 1500,
+            onComplete: () => skillText.destroy()
+        });
+        
+        this.tweens.add({
+            targets: boostText,
+            y: boostText.y - 50,
+            alpha: 0,
+            duration: 1500,
+            onComplete: () => boostText.destroy()
+        });
+    }
+    
     crashPlayer(playerIndex, opponent) {
         const player = this.players[playerIndex];
         if (!player.active) return;
@@ -790,11 +831,36 @@ class RunningScene extends Phaser.Scene {
                 console.log(`Bonus triggered! Player ${playerIndex} will respawn after bonus round`);
                 console.log('Keeping player sprite and ball intact for bonus round!');
                 
-                // DON'T destroy anything - just show referee and trigger bonus round
+                // Show tackle animation on opponent but keep player/ball intact
+                if (opponent) {
+                    const oppX = opponent.x;
+                    const oppY = opponent.y;
+                    const oppScale = opponent.perspectiveScale || perspectiveScale;
+                    
+                    // Stop and destroy opponent sprite
+                    if (opponent.isAnimated) {
+                        opponent.stop();
+                    }
+                    opponent.destroy();
+                    
+                    // Create tackle static image with perspective scaling
+                    const tackleImage = this.add.image(oppX, oppY, 'opposition_tackle');
+                    tackleImage.setScale(0.5 * oppScale);
+                    tackleImage.setDepth(10000);
+                    
+                    // Fade out tackle image after delay
+                    this.time.delayedCall(1500, () => {
+                        if (tackleImage && tackleImage.active) {
+                            tackleImage.destroy();
+                        }
+                    });
+                }
+                
+                // Show referee and trigger bonus round
                 this.time.delayedCall(1500, () => {
                     this.showRefereeAndStartBonus();
                 });
-                return; // EXIT EARLY - don't do any destruction
+                return; // EXIT EARLY - don't destroy player/ball
             } else {
                 // No bonus - will proceed with destruction below
                 console.log('No bonus - proceeding with player destruction and game over');
