@@ -1685,36 +1685,8 @@ class RunningScene extends Phaser.Scene {
         // Clear saved state
         this.savedGameState = null;
         
-        // Resume all animations that were paused (but keep game paused)
-        this.players.forEach(player => {
-            if (player.sprite && player.sprite.anims && player.sprite.anims.isPaused) {
-                player.sprite.anims.resume();
-            }
-        });
-        
-        // Restart ball rotation animations
-        this.players.forEach(player => {
-            if (player.ball) {
-                this.tweens.add({
-                    targets: player.ball,
-                    angle: 360,
-                    duration: 1000,
-                    repeat: -1,
-                    ease: 'Linear'
-                });
-            }
-        });
-        
-        // Resume opponent animations
-        this.opponents.forEach(laneOpponents => {
-            laneOpponents.forEach(opponent => {
-                if (opponent && opponent.anims && opponent.anims.isPaused && opponent.isAnimated) {
-                    opponent.anims.resume();
-                }
-            });
-        });
-        
-        // Show whistle message before resuming game
+        // DON'T resume animations yet - wait for whistle
+        // Show whistle message first, then resume everything
         this.showResumeWhistleMessage();
     }
     
@@ -1731,17 +1703,50 @@ class RunningScene extends Phaser.Scene {
             strokeThickness: 6
         }).setOrigin(0.5).setDepth(20000).setScrollFactor(0);
         
-        // Fade out after 2 seconds and resume game
-        this.tweens.add({
-            targets: message,
-            alpha: 0,
-            duration: 2000,
-            onComplete: () => {
-                message.destroy();
-                // NOW resume the game
-                this.isRunning = true;
-                this.multiplierPaused = false;
-            }
+        // Wait 2 seconds, then fade out and resume everything
+        this.time.delayedCall(2000, () => {
+            // Fade out the message
+            this.tweens.add({
+                targets: message,
+                alpha: 0,
+                duration: 500,
+                onComplete: () => {
+                    message.destroy();
+                }
+            });
+            
+            // Resume all player animations
+            this.players.forEach(player => {
+                if (player.sprite && player.sprite.anims && player.sprite.anims.isPaused) {
+                    player.sprite.anims.resume();
+                }
+            });
+            
+            // Restart ball rotation animations
+            this.players.forEach(player => {
+                if (player.ball) {
+                    this.tweens.add({
+                        targets: player.ball,
+                        angle: 360,
+                        duration: 1000,
+                        repeat: -1,
+                        ease: 'Linear'
+                    });
+                }
+            });
+            
+            // Resume opponent animations
+            this.opponents.forEach(laneOpponents => {
+                laneOpponents.forEach(opponent => {
+                    if (opponent && opponent.anims && opponent.anims.isPaused && opponent.isAnimated) {
+                        opponent.anims.resume();
+                    }
+                });
+            });
+            
+            // NOW resume the game
+            this.isRunning = true;
+            this.multiplierPaused = false;
         });
     }
     
