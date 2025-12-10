@@ -52,12 +52,41 @@ class RunningScene extends Phaser.Scene {
         
         // Set up scene wake handler for bonus round returns (using wake instead of resume)
         this.events.on('wake', () => {
-            console.log('RunningScene woken - simply resuming gameplay');
-            // No need to restore sprites - scene.sleep() preserves everything!
+            console.log('RunningScene woken - checking sprite visibility');
+            
+            // Ensure all sprites are visible (scene.sleep() should preserve them)
+            this.players.forEach((player, index) => {
+                console.log(`Player ${index}:`, {
+                    active: player.active,
+                    hasSprite: !!player.sprite,
+                    spriteVisible: player.sprite ? player.sprite.visible : 'no sprite',
+                    hasBall: player.hasBall,
+                    ballVisible: player.ball ? player.ball.visible : 'no ball',
+                    indicatorVisible: player.indicator ? player.indicator.visible : 'no indicator'
+                });
+                
+                // Make sure sprites are visible
+                if (player.sprite) {
+                    player.sprite.setVisible(true);
+                }
+                if (player.ball) {
+                    player.ball.setVisible(true);
+                }
+                if (player.indicator) {
+                    player.indicator.setVisible(true);
+                }
+            });
+            
             // Just resume the game logic
             this.isRunning = true;
             this.multiplierPaused = false;
-            console.log('Game resumed after bonus round');
+            
+            // Still call restoreGameState for bonus animation handling
+            if (this.savedGameState) {
+                this.restoreGameState();
+            } else {
+                console.log('Game resumed after bonus round - no saved state');
+            }
         });
         
         // Create pitch
