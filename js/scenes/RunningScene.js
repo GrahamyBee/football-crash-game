@@ -744,8 +744,6 @@ class RunningScene extends Phaser.Scene {
         const player = this.players[playerIndex];
         if (!player.active) return;
         
-        player.active = false;
-        
         // Store reference to the opposition that caused the tackle (for bonus round)
         if (opponent) {
             this.lastTackler = opponent;
@@ -753,6 +751,47 @@ class RunningScene extends Phaser.Scene {
         
         // Get perspective scale for this lane
         const perspectiveScale = player.perspectiveScale || 1.0;
+        
+        // **CRITICAL: Check for bonus FIRST before destroying anything**
+        if (player.hasBall) {
+            // IMPORTANT: Save which player had the ball
+            this.bonusRoundPlayerIndex = playerIndex;
+            
+            // Stop the game immediately
+            this.isRunning = false;
+            
+            // Check for bonus round
+            const forceBonus = this.registry.get('forceBonus') || false;
+            
+            // If Force Bonus is enabled, ALWAYS trigger bonus (100% chance)
+            // Otherwise, 1 in 5 chance (20%)
+            const randomValue = Math.random();
+            const bonusTriggered = forceBonus || (randomValue < 0.2);
+            
+            console.log('Player with ball tackled!', {
+                playerIndex: playerIndex,
+                forceBonus: forceBonus,
+                randomValue: randomValue,
+                bonusTriggered: bonusTriggered
+            });
+            
+            if (bonusTriggered) {
+                console.log(`Bonus triggered! Player ${playerIndex} will respawn after bonus round`);
+                console.log('Keeping player sprite and ball intact for bonus round!');
+                
+                // DON'T destroy anything - just show referee and trigger bonus round
+                this.time.delayedCall(1500, () => {
+                    this.showRefereeAndStartBonus();
+                });
+                return; // EXIT EARLY - don't do any destruction
+            } else {
+                // No bonus - will proceed with destruction below
+                console.log('No bonus - proceeding with player destruction');
+            }
+        }
+        
+        // If we reach here, no bonus was triggered - proceed with normal crash
+        player.active = false;
         
         // Replace opponent with tackle image
         if (opponent) {
@@ -835,47 +874,15 @@ class RunningScene extends Phaser.Scene {
             onComplete: () => crashText.destroy()
         });
         
-        // Check if the crashed player had the ball - if so, check for bonus round
+        // If player had ball and no bonus, trigger game over
         if (player.hasBall) {
-            // IMPORTANT: Save which player had the ball
-            this.bonusRoundPlayerIndex = playerIndex;
-            
-            // Stop the game immediately
-            this.isRunning = false;
-            
-            // Check for bonus round
-            const forceBonus = this.registry.get('forceBonus') || false;
-            
-            // If Force Bonus is enabled, ALWAYS trigger bonus (100% chance)
-            // Otherwise, 1 in 5 chance (20%)
-            const randomValue = Math.random();
-            const bonusTriggered = forceBonus || (randomValue < 0.2);
-            
-            console.log('Player with ball tackled!', {
-                playerIndex: playerIndex,
-                forceBonus: forceBonus,
-                randomValue: randomValue,
-                bonusTriggered: bonusTriggered
+            player.hasBall = false;
+            player.ball = null;
+            // Game over - player with ball was tackled
+            console.log('No bonus - game over in 1.5 seconds...');
+            this.time.delayedCall(1500, () => {
+                this.gameOver();
             });
-            
-            if (bonusTriggered) {
-                console.log(`Bonus triggered! Player ${playerIndex} will respawn after bonus round`);
-                
-                // Show referee and trigger bonus round
-                console.log('Bonus round will trigger in 1.5 seconds...');
-                this.time.delayedCall(1500, () => {
-                    this.showRefereeAndStartBonus();
-                });
-            } else {
-                // No bonus - clear ball reference and proceed to game over
-                player.hasBall = false;
-                player.ball = null;
-                // Game over - player with ball was tackled
-                console.log('No bonus - game over in 1.5 seconds...');
-                this.time.delayedCall(1500, () => {
-                    this.gameOver();
-                });
-            }
         }
     }
     
