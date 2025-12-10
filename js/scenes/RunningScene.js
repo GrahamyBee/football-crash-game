@@ -1686,7 +1686,7 @@ class RunningScene extends Phaser.Scene {
         // Clear saved state
         this.savedGameState = null;
         
-        // Resume all animations that were paused
+        // Resume all animations that were paused (but keep game paused)
         this.players.forEach(player => {
             if (player.sprite && player.sprite.anims && player.sprite.anims.isPaused) {
                 player.sprite.anims.resume();
@@ -1715,9 +1715,35 @@ class RunningScene extends Phaser.Scene {
             });
         });
         
-        // Resume game immediately (2-second pause already handled in BonusRoundScene)
-        this.isRunning = true;
-        this.multiplierPaused = false;
+        // Show whistle message before resuming game
+        this.showResumeWhistleMessage();
+    }
+    
+    showResumeWhistleMessage() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        const message = this.add.text(width / 2, height / 2, '🔊 WHISTLE!\nGame Resuming...', {
+            fontSize: '48px',
+            fontStyle: 'bold',
+            fill: '#ffffff',
+            align: 'center',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5).setDepth(20000).setScrollFactor(0);
+        
+        // Fade out after 2 seconds and resume game
+        this.tweens.add({
+            targets: message,
+            alpha: 0,
+            duration: 2000,
+            onComplete: () => {
+                message.destroy();
+                // NOW resume the game
+                this.isRunning = true;
+                this.multiplierPaused = false;
+            }
+        });
     }
     
     showBonusAddedAnimation(bonusAmount) {
