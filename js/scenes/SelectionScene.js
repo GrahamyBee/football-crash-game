@@ -455,17 +455,14 @@ class SelectionScene extends Phaser.Scene {
         // Create three toggle buttons
         this.createDebugToggle('Force Goal', forceGoal, -50, (enabled) => {
             this.registry.set('forceGoal', enabled);
-            console.log('Force Goal set to:', enabled);
         });
         
         this.createDebugToggle('Force Bonus', forceBonus, 0, (enabled) => {
             this.registry.set('forceBonus', enabled);
-            console.log('Force Bonus set to:', enabled);
         });
         
         this.createDebugToggle('Test Mode', testMode, 50, (enabled) => {
             this.registry.set('testMode', enabled);
-            console.log('Test Mode set to:', enabled);
         });
         
         // Hide initially
@@ -502,14 +499,11 @@ class SelectionScene extends Phaser.Scene {
     toggleDebugPanel() {
         // Always recreate the panel to ensure it has the latest registry values
         if (!this.debugPanel || !this.debugPanel.scene) {
-            console.log('Creating debug panel...');
             this.createDebugPanel();
         }
         
         this.debugPanelVisible = !this.debugPanelVisible;
         this.debugPanel.setVisible(this.debugPanelVisible);
-        
-        console.log('Debug panel toggled:', this.debugPanelVisible);
     }
     
     shutdown() {

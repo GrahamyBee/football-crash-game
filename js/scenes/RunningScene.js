@@ -51,45 +51,23 @@ class RunningScene extends Phaser.Scene {
         this.allWaveOpponentsGone = false; // All wave opponents off screen or destroyed
         this.waveSpawnedThisSection = false; // Flag: has a wave been spawned for current decision section
         
-        // Set up scene wake handler for bonus round returns (using wake instead of resume)
+        // ===== Scene Wake Handler (Bonus Round Return) =====
         this.events.on('wake', () => {
-            console.log('RunningScene woken - checking sprite visibility');
-            
-            // Ensure all sprites are visible (scene.sleep() should preserve them)
-            this.players.forEach((player, index) => {
-                console.log(`Player ${index}:`, {
-                    active: player.active,
-                    hasSprite: !!player.sprite,
-                    spriteVisible: player.sprite ? player.sprite.visible : 'no sprite',
-                    hasBall: player.hasBall,
-                    ballVisible: player.ball ? player.ball.visible : 'no ball',
-                    indicatorVisible: player.indicator ? player.indicator.visible : 'no indicator'
-                });
-                
-                // Make sure sprites are visible
-                if (player.sprite) {
-                    player.sprite.setVisible(true);
-                }
-                if (player.ball) {
-                    player.ball.setVisible(true);
-                }
-                if (player.indicator) {
-                    player.indicator.setVisible(true);
-                }
+            // Ensure all sprites are visible (scene.sleep() preserves them)
+            this.players.forEach((player) => {
+                if (player.sprite) player.sprite.setVisible(true);
+                if (player.ball) player.ball.setVisible(true);
+                if (player.indicator) player.indicator.setVisible(true);
             });
             
-            // Make sure shooting flag is cleared
+            // Clear shooting flag and resume game
             this.isShooting = false;
-            
-            // Just resume the game logic
             this.isRunning = true;
             this.multiplierPaused = false;
             
-            // Still call restoreGameState for bonus animation handling
+            // Restore game state for bonus animation
             if (this.savedGameState) {
                 this.restoreGameState();
-            } else {
-                console.log('Game resumed after bonus round - no saved state');
             }
         });
         
@@ -540,11 +518,9 @@ class RunningScene extends Phaser.Scene {
                 if (player.active) activeLanes.push(index);
             });
             
-            console.log('Force Bonus Wave: Spawning opponents in all active lanes:', activeLanes);
-            
             // Spawn all opponents immediately at the same distance
             activeLanes.forEach(lane => {
-                this.spawnOpponent(lane, true); // Pass true to indicate synchronized spawn
+                this.spawnOpponent(lane, true);
             });
             
             this.currentWaveCount = activeLanes.length;
@@ -672,17 +648,12 @@ class RunningScene extends Phaser.Scene {
                         this.replaceOpponentWithStaticImage(opponent, 'opposition_dodge', playerIndex, oppIndex);
                         this.showDodgeMessage(playerX, playerY, 'DODGED!');
                     } else {
-                        // SKILL! - Replace opponent with skill image
+                        // SKILL! - Replace opponent with skill image and award cash boost
                         this.replaceOpponentWithStaticImage(opponent, 'opposition_skill', playerIndex, oppIndex);
                         
-                        // Award cash boost equal to stake value (in pounds)
                         const stakeInPounds = this.selectedStake / 100;
                         this.totalBonusWon += stakeInPounds;
-                        
-                        // Show skill message with boost indicator
                         this.showSkillBoostMessage(playerX, playerY, stakeInPounds);
-                        
-                        console.log(`SKILL! Cash boost: £${stakeInPounds.toFixed(2)}, Total bonus: £${this.totalBonusWon.toFixed(2)}`);
                     }
                     
                     // Track pre-decision interactions
@@ -806,69 +777,37 @@ class RunningScene extends Phaser.Scene {
         // Get perspective scale for this lane
         const perspectiveScale = player.perspectiveScale || 1.0;
         
-        // **CRITICAL: Check for bonus FIRST before destroying anything**
-        // ONLY the player with the ball (verified by hasBall flag AND ball object) can trigger bonus
+        // ===== BONUS CHECK: Must check BEFORE destroying sprites =====
+        // Only player with ball can trigger bonus
         if (player.hasBall && player.ball) {
-            console.log(`Player ${playerIndex} with ball was tackled - checking for bonus`);
-            
-            // IMPORTANT: Save which player had the ball
             this.bonusRoundPlayerIndex = playerIndex;
-            
-            // Stop the game immediately
             this.isRunning = false;
             
-            // Check for bonus round
+            // Check for bonus round (Force Bonus = 100%, normal = 20%)
             const forceBonus = this.registry.get('forceBonus') || false;
-            
-            // If Force Bonus is enabled, ALWAYS trigger bonus (100% chance)
-            // Otherwise, 1 in 5 chance (20%)
-            const randomValue = Math.random();
-            const bonusTriggered = forceBonus || (randomValue < 0.2);
-            
-            console.log('Player with ball tackled!', {
-                playerIndex: playerIndex,
-                hasBall: player.hasBall,
-                ballExists: !!player.ball,
-                forceBonus: forceBonus,
-                randomValue: randomValue,
-                bonusTriggered: bonusTriggered
-            });
+            const bonusTriggered = forceBonus || (Math.random() < 0.2);
             
             if (bonusTriggered) {
-                console.log(`Bonus triggered! Player ${playerIndex} will respawn after bonus round`);
-                console.log('Keeping player sprite and ball intact for bonus round!');
-                
                 // Show tackle animation on opponent but keep player/ball intact
                 if (opponent) {
                     const oppX = opponent.x;
                     const oppY = opponent.y;
                     const oppScale = opponent.perspectiveScale || perspectiveScale;
                     
-                    console.log('Replacing opponent with tackle animation', {
-                        oppX, oppY, oppScale,
-                        isAnimated: opponent.isAnimated,
-                        hasAnims: !!opponent.anims
-                    });
-                    
-                    // Stop animation if it's an animated sprite
+                    // Stop and destroy opponent sprite
                     if (opponent.anims && opponent.anims.isPlaying) {
                         opponent.anims.stop();
                     }
-                    
-                    // Destroy opponent sprite
                     opponent.destroy();
                     
-                    // Create tackle static image with perspective scaling
+                    // Create tackle static image
                     const tackleImage = this.add.image(oppX, oppY, 'opposition_tackle');
                     tackleImage.setScale(0.5 * oppScale);
                     tackleImage.setDepth(10000);
                     
-                    console.log('Tackle image created at', oppX, oppY, 'with scale', 0.5 * oppScale);
-                    
                     // Fade out tackle image after delay
                     this.time.delayedCall(1500, () => {
                         if (tackleImage && tackleImage.active) {
-                            console.log('Destroying tackle image');
                             tackleImage.destroy();
                         }
                     });
@@ -878,18 +817,13 @@ class RunningScene extends Phaser.Scene {
                 this.time.delayedCall(1500, () => {
                     this.showRefereeAndStartBonus();
                 });
-                return; // EXIT EARLY - don't destroy player/ball
-            } else {
-                // No bonus - will proceed with destruction below
-                console.log('No bonus - proceeding with player destruction and game over');
+                return; // Exit early - don't destroy player/ball
             }
         } else if (player.hasBall && !player.ball) {
-            // This is a data inconsistency - player has hasBall flag but no ball object
             console.error(`ERROR: Player ${playerIndex} has hasBall=true but no ball object!`);
         }
         
-        // If we reach here, no bonus was triggered - proceed with normal crash
-        console.log(`Player ${playerIndex} tackled - no bonus (hasBall: ${player.hasBall}, ballExists: ${!!player.ball})`);
+        // ===== NO BONUS: Proceed with normal crash =====
         player.active = false;
         
         // Replace opponent with tackle image
@@ -977,8 +911,6 @@ class RunningScene extends Phaser.Scene {
         if (player.hasBall) {
             player.hasBall = false;
             player.ball = null;
-            // Game over - player with ball was tackled
-            console.log('No bonus - game over in 1.5 seconds...');
             this.time.delayedCall(1500, () => {
                 this.gameOver();
             });
@@ -986,7 +918,6 @@ class RunningScene extends Phaser.Scene {
     }
     
     handlePassAnimation(targetLane) {
-        // Make sure scene is not paused
         if (this.scene.isPaused()) {
             this.scene.resume();
         }
@@ -1209,14 +1140,6 @@ class RunningScene extends Phaser.Scene {
         
         // Adjust scroll speed to match the duration
         const actualScrollSpeed = distanceToGoal / (shotDuration / 1000);
-        
-        console.log('Shooting setup:', {
-            goalRightEdge,
-            ballTargetX,
-            distanceToGoal,
-            scrollSpeed: actualScrollSpeed,
-            shotDuration
-        });
         
         // Target ball size: same as player 4's ball (0.08 * 2.0 = 0.16)
         const targetBallScale = 0.16;
@@ -1545,15 +1468,6 @@ class RunningScene extends Phaser.Scene {
             this.registry.set('finalValue', totalWinInPence / 100); // Convert to pounds
             this.registry.set('outcomeType', 'goal');
             
-            console.log('Setting registry values:', {
-                won: true,
-                crashMultiplier: this.currentMultiplier,
-                shootingMultiplier: shootingMultiplier,
-                crashWinAmount: currentPrizeInPence / 100,
-                finalMultiplier: this.currentMultiplier * shootingMultiplier,
-                finalValue: totalWinInPence / 100
-            });
-            
             this.scene.start('OutcomeScene');
         } else {
             // Miss - player loses
@@ -1650,18 +1564,11 @@ class RunningScene extends Phaser.Scene {
     }
     
     saveGameState() {
-        console.log('Saving minimal game state before bonus round...');
-        
-        // Since scene.sleep() preserves all display objects, we only need to save:
-        // - Which player had the ball (bonusRoundPlayerIndex is already set)
-        // - Multiplier value
-        
+        // Save minimal state (scene.sleep() preserves display objects)
         this.savedGameState = {
             bonusPlayerIndex: this.bonusRoundPlayerIndex,
             currentMultiplier: this.currentMultiplier
         };
-        
-        console.log('Minimal state saved:', this.savedGameState);
     }
     
     restoreGameState() {
@@ -1670,19 +1577,12 @@ class RunningScene extends Phaser.Scene {
             return;
         }
         
-        console.log('=== SIMPLE RESTORE - No sprite manipulation needed ===');
-        console.log('scene.sleep() preserved all display objects!');
-        
         const state = this.savedGameState;
         
-        // Just restore the multiplier value
-        // Everything else (sprites, positions, etc.) was preserved by scene.sleep()
+        // Restore multiplier value (sprites preserved by scene.sleep())
         this.currentMultiplier = state.currentMultiplier;
         
-        console.log('Multiplier restored:', this.currentMultiplier);
-        console.log('Total bonus won (preserved):', this.totalBonusWon);
-        
-        // Update UI text with combined value (multiplier + bonus)
+        // Update UI with combined value (multiplier + bonus)
         if (this.cashValueText) {
             const displayMultiplier = this.currentMultiplier + (this.totalBonusWon * 100 / this.selectedStake);
             this.cashValueText.setText(this.formatCashValue(displayMultiplier));
@@ -1691,23 +1591,19 @@ class RunningScene extends Phaser.Scene {
         // Clear saved state
         this.savedGameState = null;
         
-        // Show bonus addition animation if won
+        // Show bonus animation if won, otherwise resume immediately
         const bonusWinAmount = this.registry.get('bonusWinAmount') || 0;
         if (bonusWinAmount > 0) {
             this.showBonusAddedAnimation(bonusWinAmount);
         } else {
-            // Resume immediately if no bonus won
             this.isRunning = true;
             this.multiplierPaused = false;
-            console.log('No bonus won - resuming game immediately');
         }
     }
     
     showBonusAddedAnimation(bonusAmount) {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
-        
-        console.log('Showing bonus added animation:', bonusAmount);
         
         // Keep game paused during animation
         this.isRunning = false;
@@ -1814,17 +1710,13 @@ class RunningScene extends Phaser.Scene {
                     equalsText.destroy();
                     newTotalText.destroy();
                     
-                    // Add bonus to total bonus tracker
+                    // Add bonus to total and clear registry
                     this.totalBonusWon += bonusAmount;
-                    console.log(`Total bonus won so far: £${this.totalBonusWon.toFixed(2)}`);
-                    
-                    // Clear the registry value
                     this.registry.set('bonusWinAmount', 0);
                     
-                    // Now resume the game
+                    // Resume the game
                     this.isRunning = true;
                     this.multiplierPaused = false;
-                    console.log('Bonus animation complete, game resuming');
                 }
             });
         });
@@ -1833,8 +1725,6 @@ class RunningScene extends Phaser.Scene {
     showRefereeAndStartBonus() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
-        
-        console.log('Bonus round triggered! Showing referee...');
         
         // Store game state before bonus round
         this.saveGameState();
@@ -1907,12 +1797,9 @@ class RunningScene extends Phaser.Scene {
                 ease: 'Power2.easeIn',
                 onComplete: () => {
                     referee.destroy();
-                    console.log('Launching BonusRoundScene...');
-                    // Stop the BonusRoundScene if it's already running
                     if (this.scene.isActive('BonusRoundScene')) {
                         this.scene.stop('BonusRoundScene');
                     }
-                    // Sleep this scene (keeps display list intact) and launch bonus round
                     this.scene.sleep('RunningScene');
                     this.scene.launch('BonusRoundScene');
                 }

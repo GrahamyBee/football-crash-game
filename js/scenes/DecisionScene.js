@@ -13,13 +13,7 @@ class DecisionScene extends Phaser.Scene {
         this.currentMultiplier = this.registry.get('currentMultiplier');
         this.activePlayers = this.registry.get('activePlayers');
         this.currentDecisionIndex = this.registry.get('currentDecisionIndex') || 0;
-        
-        console.log('DecisionScene - currentDecisionIndex:', this.currentDecisionIndex);
-        
-        // Check if this is the 4th decision (index 3)
         this.isFinalDecision = (this.currentDecisionIndex === 3);
-        
-        console.log('DecisionScene - isFinalDecision:', this.isFinalDecision);
         
         // Semi-transparent overlay
         this.add.rectangle(0, 0, width, height, 0x000000, 0.7).setOrigin(0);

@@ -193,11 +193,6 @@ class BonusRoundScene extends Phaser.Scene {
                     strokeThickness: 5
                 }).setOrigin(0.5).setDepth(150);
                 
-                console.log('BonusRoundScene - Goal scored:', {
-                    cashAmount: cashAmount,
-                    cashAmountInPounds: cashAmount / 100
-                });
-                
                 // Show win message
                 this.time.delayedCall(1000, () => {
                     this.showWinMessage(cashAmount);
@@ -248,12 +243,6 @@ class BonusRoundScene extends Phaser.Scene {
         // Add winnings to wallet
         const currentBalance = this.registry.get('walletBalance') || 0;
         this.registry.set('walletBalance', currentBalance + cashAmount);
-        
-        console.log('BonusRoundScene - Adding to wallet:', {
-            previousBalance: currentBalance / 100,
-            cashWon: cashAmount / 100,
-            newBalance: (currentBalance + cashAmount) / 100
-        });
         
         // YOU WIN!!! text
         const youWinText = this.add.text(width / 2, height / 2 - 100, 'BONUS WIN!!!', {
@@ -312,8 +301,6 @@ class BonusRoundScene extends Phaser.Scene {
             strokeThickness: 6
         }).setOrigin(0.5).setDepth(150);
         
-        console.log('BonusRoundScene - Shot saved, no bonus won');
-        
         // Wait then return to RunningScene
         this.time.delayedCall(2000, () => {
             this.returnToGame();
@@ -321,8 +308,6 @@ class BonusRoundScene extends Phaser.Scene {
     }
     
     returnToGame() {
-        console.log('BonusRoundScene - Returning to game...');
-        
         // Check if there was a bonus win to display
         const bonusWinAmount = this.registry.get('bonusWinAmount');
         
@@ -339,9 +324,7 @@ class BonusRoundScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        console.log('Showing wallet animation for £' + bonusAmount.toFixed(2));
-        
-        // Create wallet icon (using a simple container with shapes)
+        // Create wallet icon
         const walletContainer = this.add.container(width / 2, height / 2);
         
         // Wallet background (rounded rectangle simulation)
@@ -441,14 +424,9 @@ class BonusRoundScene extends Phaser.Scene {
     }
     
     finalizeReturn() {
-        console.log('Finalizing return to RunningScene...');
-        
-        // Clear the bonus win amount
+        // Clear bonus win amount and return to game
         this.registry.set('bonusWinAmount', 0);
-        
-        // Stop this scene and wake the RunningScene (restoration will happen in wake event handler)
         this.scene.stop('BonusRoundScene');
-        console.log('BonusRoundScene stopped, waking RunningScene...');
         this.scene.wake('RunningScene');
     }
     

@@ -191,17 +191,7 @@ class PenaltyScene extends Phaser.Scene {
                 this.registry.set('crashMultiplier', crashMultiplier);
                 this.registry.set('shootingMultiplier', multiplier); // Penalty zone multiplier
                 this.registry.set('crashWinAmount', this.currentPrize / 100); // Crash game winnings in pounds
-                this.registry.set('finalMultiplier', crashMultiplier * multiplier); // Total combined multiplier
-                
-                console.log('PenaltyScene - Storing values:', {
-                    currentPrize: this.currentPrize,
-                    multiplier: multiplier,
-                    crashMultiplier: crashMultiplier,
-                    crashWinAmount: this.currentPrize / 100,
-                    finalMultiplier: crashMultiplier * multiplier,
-                    totalWin: totalWin,
-                    totalWinInPounds: totalWin / 100
-                });
+                this.registry.set('finalMultiplier', crashMultiplier * multiplier);
                 
                 // Show multiplier on ball
                 const multiplierText = this.add.text(targetX, targetY - 30, `x${multiplier}`, {

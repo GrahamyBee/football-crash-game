@@ -19,14 +19,6 @@ class OutcomeScene extends Phaser.Scene {
         this.shootingMultiplier = this.registry.get('shootingMultiplier') || 0;
         this.crashWinAmount = this.registry.get('crashWinAmount') || 0;
         
-        console.log('OutcomeScene values:', {
-            won: this.won,
-            finalValue: this.finalValue,
-            crashMultiplier: this.crashMultiplier,
-            shootingMultiplier: this.shootingMultiplier,
-            crashWinAmount: this.crashWinAmount
-        });
-        
         // Note: Wallet is already updated in the scene where the win occurred
         // (RunningScene or PenaltyScene), so we don't add winnings here
         
