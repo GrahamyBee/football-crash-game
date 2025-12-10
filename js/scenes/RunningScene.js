@@ -1608,6 +1608,10 @@ class RunningScene extends Phaser.Scene {
         // Keep game paused during animation
         this.isRunning = false;
         
+        // ADD BONUS TO TOTAL IMMEDIATELY (before animation)
+        this.totalBonusWon += bonusAmount;
+        this.registry.set('bonusWinAmount', 0);
+        
         // Current game value
         const currentValue = this.formatCashValue(this.currentMultiplier);
         
@@ -1709,10 +1713,6 @@ class RunningScene extends Phaser.Scene {
                     bonusAmountText.destroy();
                     equalsText.destroy();
                     newTotalText.destroy();
-                    
-                    // Add bonus to total and clear registry
-                    this.totalBonusWon += bonusAmount;
-                    this.registry.set('bonusWinAmount', 0);
                     
                     // Resume the game
                     this.isRunning = true;
