@@ -56,7 +56,7 @@ class OutcomeScene extends Phaser.Scene {
             ? `${this.selectedStake}p` 
             : `£${(this.selectedStake / 100).toFixed(2)}`;
             
-        this.add.text(panelX, panelY - 100, `Stake: ${stakeLabel}`, {
+        this.add.text(panelX, panelY - 130, `Stake: ${stakeLabel}`, {
             fontSize: '24px',
             fill: '#ffffff'
         }).setOrigin(0.5);
@@ -67,7 +67,7 @@ class OutcomeScene extends Phaser.Scene {
             const bonusWinAmount = this.registry.get('bonusWinAmount') || 0;
             const totalWin = this.finalValue + bonusWinAmount;
             
-            let currentY = panelY - 90;
+            let currentY = panelY - 80;
             
             // Show crash game amount (without label to save space)
             this.add.text(panelX, currentY, `£${this.crashWinAmount.toFixed(2)}`, {
@@ -78,7 +78,7 @@ class OutcomeScene extends Phaser.Scene {
                 strokeThickness: 4
             }).setOrigin(0.5);
             
-            currentY += 50;
+            currentY += 60;
             
             // Show bonus round winnings if any
             if (bonusWinAmount > 0) {
@@ -87,7 +87,7 @@ class OutcomeScene extends Phaser.Scene {
                     fill: '#ffffff'
                 }).setOrigin(0.5);
                 
-                this.add.text(panelX, currentY + 30, `£${bonusWinAmount.toFixed(2)}`, {
+                this.add.text(panelX, currentY + 35, `£${bonusWinAmount.toFixed(2)}`, {
                     fontSize: '32px',
                     fontStyle: 'bold',
                     fill: '#FF69B4',
@@ -95,7 +95,7 @@ class OutcomeScene extends Phaser.Scene {
                     strokeThickness: 4
                 }).setOrigin(0.5);
                 
-                currentY += 70;
+                currentY += 75;
             }
             
             // Show multiplier (shooting or penalty)
@@ -105,7 +105,7 @@ class OutcomeScene extends Phaser.Scene {
                 fill: '#ffffff'
             }).setOrigin(0.5);
             
-            this.add.text(panelX, currentY + 30, `x${this.shootingMultiplier.toFixed(1)}`, {
+            this.add.text(panelX, currentY + 35, `x${this.shootingMultiplier.toFixed(1)}`, {
                 fontSize: '32px',
                 fontStyle: 'bold',
                 fill: '#00BFFF',
@@ -113,7 +113,7 @@ class OutcomeScene extends Phaser.Scene {
                 strokeThickness: 4
             }).setOrigin(0.5);
             
-            currentY += 70;
+            currentY += 75;
             
             // Show total winnings (including bonus if any)
             
