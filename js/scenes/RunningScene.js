@@ -605,15 +605,17 @@ class RunningScene extends Phaser.Scene {
     }
     
     checkCrashes() {
-        this.players.forEach((player, playerIndex) => {
-            if (!player.active) return;
-            
-            const playerX = player.sprite.x;
-            const playerY = player.sprite.y;
-            
-            this.opponents[playerIndex].forEach((opponent, oppIndex) => {
-                // Only process collision if flag is 0 (not yet collided)
-                if (opponent.collisionFlag !== 0) return;
+        // ONLY check collisions for the selected player (the one with the ball)
+        // Other players should not interact with opponents or receive skill boosts
+        const player = this.players[this.selectedPlayer];
+        if (!player || !player.active) return;
+        
+        const playerX = player.sprite.x;
+        const playerY = player.sprite.y;
+        
+        this.opponents[this.selectedPlayer].forEach((opponent, oppIndex) => {
+            // Only process collision if flag is 0 (not yet collided)
+            if (opponent.collisionFlag !== 0) return;
                 
                 const distance = Phaser.Math.Distance.Between(
                     playerX, playerY,
@@ -642,14 +644,14 @@ class RunningScene extends Phaser.Scene {
                     
                     if (outcome === 'tackle') {
                         // CRASH! Replace both player and opponent with static images
-                        this.crashPlayer(playerIndex, opponent);
+                        this.crashPlayer(this.selectedPlayer, opponent);
                     } else if (outcome === 'dodge') {
                         // Replace opponent with dodge image
-                        this.replaceOpponentWithStaticImage(opponent, 'opposition_dodge', playerIndex, oppIndex);
+                        this.replaceOpponentWithStaticImage(opponent, 'opposition_dodge', this.selectedPlayer, oppIndex);
                         this.showDodgeMessage(playerX, playerY, 'DODGED!');
                     } else {
-                        // SKILL! - Replace opponent with skill image and award cash boost
-                        this.replaceOpponentWithStaticImage(opponent, 'opposition_skill', playerIndex, oppIndex);
+                        // SKILL! - Replace opponent with skill image and award cash boost (ONLY for selected player)
+                        this.replaceOpponentWithStaticImage(opponent, 'opposition_skill', this.selectedPlayer, oppIndex);
                         
                         const stakeInPounds = this.selectedStake / 100;
                         this.totalBonusWon += stakeInPounds;
@@ -675,7 +677,6 @@ class RunningScene extends Phaser.Scene {
                     }
                 }
             });
-        });
     }
     
     replaceOpponentWithStaticImage(opponent, imageKey, lane, oppIndex) {
@@ -1573,6 +1574,29 @@ class RunningScene extends Phaser.Scene {
             bonusPlayerIndex: this.bonusRoundPlayerIndex,
             currentMultiplier: this.currentMultiplier
         };
+        
+        // Pause all player animations during bonus round
+        this.players.forEach(player => {
+            if (player.sprite && player.sprite.anims) {
+                player.sprite.anims.pause();
+            }
+        });
+        
+        // Pause ball rotation tweens
+        this.players.forEach(player => {
+            if (player.ball) {
+                this.tweens.killTweensOf(player.ball); // Stop rotation tweens
+            }
+        });
+        
+        // Pause opponent animations
+        this.opponents.forEach(laneOpponents => {
+            laneOpponents.forEach(opponent => {
+                if (opponent && opponent.anims && opponent.isAnimated) {
+                    opponent.anims.pause();
+                }
+            });
+        });
     }
     
     restoreGameState() {
@@ -1586,7 +1610,8 @@ class RunningScene extends Phaser.Scene {
         // Restore multiplier value (sprites preserved by scene.sleep())
         this.currentMultiplier = state.currentMultiplier;
         
-        // Update UI with combined value (multiplier + bonus)
+        // IMPORTANT: Update UI with combined value (multiplier + bonus)
+        // BonusRoundScene may have added to totalBonusWon, so recalculate display
         if (this.cashValueText) {
             const displayMultiplier = this.currentMultiplier + (this.totalBonusWon * 100 / this.selectedStake);
             this.cashValueText.setText(this.formatCashValue(displayMultiplier));
@@ -1595,14 +1620,38 @@ class RunningScene extends Phaser.Scene {
         // Clear saved state
         this.savedGameState = null;
         
-        // Show bonus animation if won, otherwise resume immediately
-        const bonusWinAmount = this.registry.get('bonusWinAmount') || 0;
-        if (bonusWinAmount > 0) {
-            this.showBonusAddedAnimation(bonusWinAmount);
-        } else {
-            this.isRunning = true;
-            this.multiplierPaused = false;
-        }
+        // Resume all animations that were paused
+        this.players.forEach(player => {
+            if (player.sprite && player.sprite.anims && player.sprite.anims.isPaused) {
+                player.sprite.anims.resume();
+            }
+        });
+        
+        // Restart ball rotation animations
+        this.players.forEach(player => {
+            if (player.ball) {
+                this.tweens.add({
+                    targets: player.ball,
+                    angle: 360,
+                    duration: 1000,
+                    repeat: -1,
+                    ease: 'Linear'
+                });
+            }
+        });
+        
+        // Resume opponent animations
+        this.opponents.forEach(laneOpponents => {
+            laneOpponents.forEach(opponent => {
+                if (opponent && opponent.anims && opponent.anims.isPaused && opponent.isAnimated) {
+                    opponent.anims.resume();
+                }
+            });
+        });
+        
+        // Resume game immediately
+        this.isRunning = true;
+        this.multiplierPaused = false;
     }
     
     showBonusAddedAnimation(bonusAmount) {

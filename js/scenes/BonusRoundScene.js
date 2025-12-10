@@ -413,7 +413,7 @@ class BonusRoundScene extends Phaser.Scene {
             ease: 'Power2'
         });
         
-        // 6. After 3 seconds total, fade everything out and return to game
+        // 6. After 3 seconds, fade everything out, wait 2 more seconds, then return to game
         this.time.delayedCall(3000, () => {
             this.tweens.add({
                 targets: [walletContainer, bonusText, addingText],
@@ -423,7 +423,11 @@ class BonusRoundScene extends Phaser.Scene {
                     walletContainer.destroy();
                     bonusText.destroy();
                     addingText.destroy();
-                    this.finalizeReturn();
+                    
+                    // Add 2-second pause for game pacing before returning
+                    this.time.delayedCall(2000, () => {
+                        this.finalizeReturn();
+                    });
                 }
             });
         });
