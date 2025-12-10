@@ -325,6 +325,11 @@ class RunningScene extends Phaser.Scene {
     }
     
     startRunning() {
+        console.log('=== GAME STARTING ===');
+        console.log('testModeEnabled:', this.testModeEnabled);
+        console.log('isPreFirstDecision:', this.isPreFirstDecision);
+        console.log('preDecisionOpponentsSpawned:', this.preDecisionOpponentsSpawned);
+        
         this.isRunning = true;
         this.hasStarted = true;
         this.gameStartTime = this.time.now;
@@ -508,6 +513,7 @@ class RunningScene extends Phaser.Scene {
     updateOpponents(deltaSeconds) {
         // Block all spawning if test mode is enabled
         if (this.testModeEnabled) {
+            console.log('TEST MODE ENABLED - Skipping all opposition spawning');
             return; // Skip all opposition spawning in test mode
         }
         
