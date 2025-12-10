@@ -609,6 +609,7 @@ class RunningScene extends Phaser.Scene {
             if (totalOpponents === 0) {
                 this.currentWaveActive = false;
                 this.allWaveOpponentsGone = true;
+                this.waveSpawnedThisSection = false; // Allow new wave to spawn
             }
         }
     }
@@ -635,6 +636,7 @@ class RunningScene extends Phaser.Scene {
         } else {
             // Normal mode: Random wave size: 1-3 opponents (always at least 1)
             this.currentWaveCount = 1 + Math.floor(Math.random() * 3); // 1, 2, or 3
+            this.waveOpponentsSpawned = 0;
             
             // Check if we need to add forced crash opponents for this stage
             // Stage 1 = after first decision, Stage 2 = after second decision, Stage 3 = after third decision
@@ -642,17 +644,17 @@ class RunningScene extends Phaser.Scene {
             const stageCrashes = this.forcedCrashSchedule.filter(c => c.stage === currentStage);
             
             if (stageCrashes.length > 0) {
-                // Add forced crash opponents to the wave
+                // Add forced crash opponents to the wave (spawn immediately)
                 stageCrashes[0].players.forEach(playerIndex => {
                     if (this.players[playerIndex] && this.players[playerIndex].active) {
                         // Spawn forced crash opponent immediately
                         this.spawnOpponent(playerIndex, false, true);
                         this.currentWaveCount++;
+                        this.waveOpponentsSpawned++; // Count forced crashes as spawned
                     }
                 });
             }
             
-            this.waveOpponentsSpawned = 0;
             this.currentWaveActive = true;
             this.allWaveOpponentsGone = false;
             this.lastOpponentSpawnTime = this.elapsedTime;
