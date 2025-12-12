@@ -1540,74 +1540,44 @@ class RunningScene extends Phaser.Scene {
         // Store game state before bonus round
         this.saveGameState();
         
-        // Create referee image below screen (showing only 66% when slid up)
-        const refereeHeight = 400; // Approximate height of referee image at scale
-        const visiblePercent = 0.66;
-        const slideUpY = height - (refereeHeight * visiblePercent * 0.9); // 0.9 is the scale (3x bigger)
-        
-        const referee = this.add.image(width / 2, height + 100, 'referee')
-            .setScale(0.9)
-            .setDepth(10000)
-            .setScrollFactor(0);
-        
-        // Add referee whistle text (initially hidden)
-        const whistleText = this.add.text(width / 2, slideUpY - 250, 'REFEREE WHISTLE!', {
-            fontSize: '48px',
+        // THEMELESS: Simple text notification without referee image
+        const whistleText = this.add.text(width / 2, height / 2 - 50, 'REFEREE WHISTLE!', {
+            fontSize: '64px',
             fontStyle: 'bold',
             fill: '#FFD700',
+            stroke: '#000000',
+            strokeThickness: 8
+        }).setOrigin(0.5).setDepth(10000).setScrollFactor(0).setAlpha(0);
+        
+        const bonusText = this.add.text(width / 2, height / 2 + 50, 'BONUS ROUND!', {
+            fontSize: '48px',
+            fontStyle: 'bold',
+            fill: '#FFFFFF',
             stroke: '#000000',
             strokeThickness: 6
         }).setOrigin(0.5).setDepth(10000).setScrollFactor(0).setAlpha(0);
         
-        const bonusText = this.add.text(width / 2, slideUpY - 180, 'BONUS ROUND!', {
-            fontSize: '36px',
-            fontStyle: 'bold',
-            fill: '#FFFFFF',
-            stroke: '#000000',
-            strokeThickness: 4
-        }).setOrigin(0.5).setDepth(10000).setScrollFactor(0).setAlpha(0);
-        
         // Store references for cleanup
-        this.refereeElements = { referee, whistleText, bonusText };
+        this.refereeElements = { whistleText, bonusText };
         
-        // Slide referee up from bottom
+        // Fade in text
         this.tweens.add({
-            targets: referee,
-            y: slideUpY,
-            duration: 800,
-            ease: 'Back.easeOut',
-            onComplete: () => {
-                // Fade in text
-                this.tweens.add({
-                    targets: [whistleText, bonusText],
-                    alpha: 1,
-                    duration: 300,
-                    ease: 'Power2'
-                });
-            }
+            targets: [whistleText, bonusText],
+            alpha: 1,
+            duration: 400,
+            ease: 'Power2'
         });
         
-        // Wait then slide referee down and start bonus round
+        // Wait then fade out and start bonus round
         this.time.delayedCall(2000, () => {
             // Fade out text
             this.tweens.add({
                 targets: [whistleText, bonusText],
                 alpha: 0,
-                duration: 300,
+                duration: 400,
                 onComplete: () => {
                     whistleText.destroy();
                     bonusText.destroy();
-                }
-            });
-            
-            // Slide referee back down
-            this.tweens.add({
-                targets: referee,
-                y: height + 100,
-                duration: 600,
-                ease: 'Power2.easeIn',
-                onComplete: () => {
-                    referee.destroy();
                     if (this.scene.isActive('BonusRoundScene')) {
                         this.scene.stop('BonusRoundScene');
                     }
