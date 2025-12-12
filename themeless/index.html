@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Football Crash Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="game"></div>
+    </div>
+    
+    <!-- Load Phaser 3 from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
+    
+    <!-- Game Scripts with cache busting -->
+    <script src="js/config.js?v=160"></script>
+    <script src="js/scenes/BootScene.js?v=169"></script>
+    <script src="js/scenes/SelectionScene.js?v=210"></script>
+    <script src="js/scenes/RunningScene.js?v=219"></script>
+    <script src="js/scenes/DecisionScene.js?v=200"></script>
+    <script src="js/scenes/ShootingScene.js?v=160"></script>
+    <script src="js/scenes/PenaltyScene.js?v=211"></script>
+    <script src="js/scenes/BonusRoundScene.js?v=210"></script>
+    <script src="js/scenes/OutcomeScene.js?v=211"></script>
+    <script src="js/main.js?v=169"></script>
+</body>
+</html>
