@@ -809,11 +809,9 @@ class RunningScene extends Phaser.Scene {
                         // Decrement interaction counter
                         this.preDecisionInteractionsRemaining--;
                         
-                        // If all interactions complete, wait 2 seconds before allowing decision
+                        // If all interactions complete, show decision panel immediately
                         if (this.preDecisionInteractionsRemaining === 0) {
-                            this.time.delayedCall(2000, () => {
-                                this.preDecisionAllInteractionsComplete = true;
-                            });
+                            this.preDecisionAllInteractionsComplete = true;
                         }
                     }
                 }
